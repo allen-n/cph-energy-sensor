@@ -7,7 +7,8 @@
 
   #include "waveform.h"
   #include "powerWave.h"
-  #include "SparkIntervalTimer/SparkIntervalTimer.h"
+  #include "ADS6838SR.h"
+  #include "SparkIntervalTimer.h"
 
  const size_t SAMPLE_BUF_SIZE =  512 + 10; //these rates are doubled from base
  const long SAMPLE_RATE = 4096*2; //8192/2;
