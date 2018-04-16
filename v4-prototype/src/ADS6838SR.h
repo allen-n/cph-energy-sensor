@@ -1,7 +1,7 @@
 #ifndef __ADS6838_INCLUDED__
 #define __ADS6838_INCLUDED__
 
-#include <bitset>
+// #include <bitset>
 #include "Particle.h"
 
 #define ADS8638_REG_MANUAL         0x04
@@ -42,7 +42,7 @@
 class ads6838
 {
 public:
-	ads6838(); //passing initialized SPI object, desired clk
+	ads6838(uint8_t clk_speed); //passing initialized SPI object, desired clk
 
 
 protected:
@@ -66,8 +66,8 @@ protected:
 	static uint32_t transfer_state;
 
 	static void trasnferHandler();
-	void read8(uint8_t &val);
-	void set_tx()
+	void read8();
+	void set_tx();
 	void transfer128(uint16_t &flag);
 };
 
