@@ -42,8 +42,11 @@
 class ads6838
 {
 public:
-	ads6838(uint8_t clk_speed); //passing initialized SPI object, desired clk
-
+	ads6838(); //passing initialized SPI object, desired clk
+	void get8_DMA(uint8_t* rx_dest);
+	void read8_DMA(uint8_t &flag);
+	void read8();
+	void init(uint8_t clk_speed = 20);
 
 protected:
 	// bit addresses of analog pins
@@ -62,11 +65,11 @@ protected:
 	// buffers for 128 bit SPI transfer, i.e. 16 bytes
 	static uint8_t rx_buffer[16];
 	static uint8_t tx_buffer[16];
-	static uint32_t select_state;
-	static uint32_t transfer_state;
+	static uint8_t tx_buffer_read8[16]; //reference for read8 SPI command
+	static uint8_t select_state;
+	static uint8_t transfer_state;
 
 	static void trasnferHandler();
-	void read8();
 	void set_tx();
 	void transfer128(uint16_t &flag);
 };
