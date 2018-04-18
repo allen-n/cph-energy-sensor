@@ -3,10 +3,10 @@
 
 #include <vector>
 #include <math.h>
+// #include <algorithm>
 // #include <fstream>
 // #include <string>
 // #include <sstream>
-// #include <algorithm>
 
 class waveform
 {
@@ -20,12 +20,13 @@ public:
   unsigned long printTime(int i);
   double printData(int i);
   unsigned long printPeaks(int i);
-  waveform(int numPts);
+  waveform(int numPts, size_t filtKernalSize = 11);
   int _numPts;
   double _RMS = NULL;
   std::vector<double> _datapoints;
-  std::vector<double> _filterDatapoints;
+  // std::vector<double> _filterDatapoints;
   std::vector<unsigned long> _peakVect;
+  bool _isFiltered = false;
   size_t _filtKernalSize = 11;
 
   double getAverage();
@@ -50,7 +51,7 @@ protected:
   where each even element corresponds to the real part and each
   odd element to the imaginary part of a complex number.
   */
-  // void FFT(double* data, unsigned long nn);
+  void FFT(double* data, unsigned long nn);
   // in case we need more filtering
 };
 

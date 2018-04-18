@@ -1,4 +1,5 @@
 #include "powerWave.h"
+// #include "Particle.h" //FIXME
 
 #define PI 3.14159265
 /*powerWave::powerWave(waveform& vWave, waveform& iWave) :
@@ -8,6 +9,7 @@ powerWave::powerWave(int numPts, int SAMPLE_RATE)
 // as numPts
 {
   this->_pData.clear();
+  this->_pDataAngle.clear();
   /*this->_pDataSize = (numPts - 2);
   this->_pData.resize(this->_pDataSize);*/
   /*this->_vWave = & vWave;
@@ -24,11 +26,13 @@ void powerWave::clearWave()
   this->_realP = NULL;
   this->_reactiveP = NULL;
   this->_PF = NULL;
-  for(size_t i = 0; i < this->_pData.size(); i++)
-  {
-    this->_pData[i] = 0;
-    this->_pDataAngle[i] = 0;
-  }
+  std::fill(_pData.begin(), _pData.end(), 0);
+  std::fill(_pDataAngle.begin(), _pDataAngle.end(), 0);
+  // for(size_t i = 0; i < this->_pData.size(); i++)
+  // {
+  //   this->_pData[i] = 0;
+  //   this->_pDataAngle[i] = 0;
+  // }
   /*this->_vWave = NULL;
   this->_iWave = NULL;*/
 }
@@ -96,15 +100,23 @@ void powerWave::calcP()
     double iRMS = this->_iWave->_RMS;
     this-> _apparentP = vRMS * iRMS;
 
-    double size = this->_vWave->_numPts;
+    int size = this->_vWave->_numPts;
     double sum = 0;
     double v = 0;
     double i = 0;
+    // double i_avg = this->_iWave->getAverage();
+    // double v_avg = this->_vWave->getAverage();
     size_t index = (this->_iWave->_filtKernalSize-1)/2;
+    std::vector<double>& vb = this->_vWave->_datapoints;
+    std::vector<double>& ib = this->_iWave->_datapoints;
+    // if(this->_iWave->_isFiltered){
+    //   vb = this->_vWave->_filterDatapoints;
+    //   ib = this->_iWave->_filterDatapoints;
+    // }
     for(int m = index; m < size - index; ++m)
     {
-      v = this->_vWave->_filterDatapoints[m] - this->_vWave->getAverage();
-      i = this->_iWave->_filterDatapoints[m] - this->_iWave->getAverage();
+      v = vb[m]; // - v_avg;
+      i = ib[m]; // - i_avg;
       // this->_pData[m-index] = i*v;
       this->_pData[m-index] = i; //FFT on just current
       sum += v*i;
@@ -119,7 +131,9 @@ void powerWave::calcP()
   float pi = 3.1415;
   double buff[len];
 
-  trimData(this->_pData, this->_iWave->_peakVect);
+  // getting peakVect's using getFrequency()
+  // this->_iWave->getFrequency();
+  // trimData(this->_pData, this->_iWave->_peakVect); //We DO need the 'get frequency'
 
   for(size_t i=0; i<len; i++)
   {
@@ -141,6 +155,11 @@ void powerWave::trimData(std::vector<float>& data, std::vector<unsigned long>& p
   size_t start = 0;
   size_t stop = 0;
   size_t i = 0;
+  for (size_t i = 0; i < data.size(); i++) {
+    // Serial.print(peaks[i]); Serial.print(",");Serial.print(data[i]); Serial.print(","); //FIXME
+    // Serial.println(" ");
+  }
+  // Serial.println(" , end data ");
   while(peaks[i] == 0 && i < peaks.size())
   {
     temp[i] = 0;

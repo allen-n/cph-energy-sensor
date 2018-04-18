@@ -1,14 +1,12 @@
 #include "waveform.h"
+// #include "Particle.h" //FIXME
 
-// #include <vector>
-// #include <algorithm>
-// #include <math.h>
-// #include <fstream>
-// #include <string>
-// #include <sstream>
-waveform::waveform(int numPts)
-//initialize the wave object with the number of samples it will take
-// as numPts
+waveform::waveform(int numPts, size_t filtKernalSize)
+/**
+initialize the wave object with the number of samples it will take
+as numPts and the size of its moving average filter kernal as
+filtKernalSize
+**/
 {
   this->_numPts = numPts;
   this->_datapoints.clear();
@@ -18,6 +16,8 @@ waveform::waveform(int numPts)
   this->_timeStamp.resize(numPts);
   this->_peakVect.resize(numPts);
   this->_posPointer = 0;
+  this->_filtKernalSize = filtKernalSize + 1;
+  this->_isFiltered = false;
 }
 
 void waveform::resetWave()
@@ -48,13 +48,13 @@ double waveform::printData(int i)
   else return 0;
 }
 
-double waveform::printFilterData(int i)
-//print data value from vector at position i
-{
-  int vsize = this->_filterDatapoints.size();
-  if(i <= vsize) return this->_filterDatapoints[i];
-  else return 0;
-}
+// double waveform::printFilterData(int i)
+// //print data value from vector at position i
+// {
+//   int vsize = this->_filterDatapoints.size();
+//   if(i <= vsize) return this->_filterDatapoints[i];
+//   else return 0;
+// }
 
 unsigned long waveform::printPeaks(int i)
 //print data value from vector at position i
@@ -87,11 +87,12 @@ void waveform::movingAvgFilter()
 {
   /*_filterDatapoints
   _datapoints*/
+  this->_isFiltered = true;
   size_t len = this->_numPts;
   int kernSize = this->_filtKernalSize;
   int p = (kernSize-1)/2;
   int q = p+1;
-  std::vector<double>& y = this->_filterDatapoints;
+  std::vector<double> y;
   std::vector<double>& x = this->_datapoints;
   y.resize(len);
 
@@ -107,6 +108,7 @@ void waveform::movingAvgFilter()
     acc = acc + x[i+p] - x[i-q];
     y[i] = acc / kernSize;
   }
+  x = y;
 
 }
 
@@ -120,16 +122,33 @@ double waveform::getRMS(double offset)
     int numPts = this->_numPts;
     std::vector<double>& x = this->_datapoints;
     size_t index = (this->_filtKernalSize-1)/2;
-    if(x.size() == this->_filterDatapoints.size()) x = this->_filterDatapoints;
+    // if(this->_isFiltered) x = this->_filterDatapoints;
     //ignoring first and last point because they end up noisy
     for(int i = index; i < numPts - index; ++i)
     {
       double toAdd = (x[i] - this->_average);
-      x[i] = toAdd;
+      x[i] = toAdd; //NOTE: DC offset happens here
       sum+= toAdd*toAdd;
     }
     double temp = (sum/((double)numPts - index*2));
     this->_RMS = sqrt(temp);
+
+    // NOTE: Everything in this block is experimental and unverified
+    // double peak = this->getAmplitude()/4;
+    // for(int i = index + 1; i < numPts - index - 1; ++i)
+    // {
+    //   if((x[i-1] < x[i]) && (x[i+1] < x[i]) && (x[i] > peak)){
+    //     this->_peakVect[i] = 1;
+    //   } else {
+    //     this->_peakVect[i] = 0;
+    //   }
+    //   // FIXME
+    //   Serial.print("X: ,");Serial.print(x[i]);Serial.print("P: ,");Serial.print(this->_peakVect[i]);
+    //   Serial.println("");
+    // }
+    // // FIXME
+    // Serial.println("");
+
   }
   return this->_RMS;
 }
@@ -143,10 +162,9 @@ double waveform::getAmplitude()
     int numPts = this->_numPts;
     std::vector<double>& x = this->_datapoints;
     size_t index = (this->_filtKernalSize-1)/2;
-    if(x.size() == this->_filterDatapoints.size()) x = this->_filterDatapoints;
+    // if(x.size() == this->_filterDatapoints.size()) x = this->_filterDatapoints;
     for(int i = index; i < numPts - index; ++i)
     {
-
       double data = x[i];
       sum += data;
       if(data > this->_maxVal) this->_maxVal = data;
@@ -167,7 +185,7 @@ double waveform::getFrequency()
     int numPts = this->_numPts;
     size_t index = (this->_filtKernalSize-1)/2;
     std::vector<double>& x = this->_datapoints;
-    if(x.size() == this->_filterDatapoints.size()) x = this->_filterDatapoints;
+    // if(x.size() == this->_filterDatapoints.size()) x = this->_filterDatapoints;
     for(int i = index + 1; i < numPts - index - 2; ++i)
     {
       double prev = x[i-1];

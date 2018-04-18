@@ -1,8 +1,8 @@
 #ifndef __ADS6838_INCLUDED__
 #define __ADS6838_INCLUDED__
 
-// #include <bitset>
 #include "Particle.h"
+#include <bitset>
 
 #define ADS8638_REG_MANUAL         0x04
 #define ADS8638_REG_AUTO           0x05
