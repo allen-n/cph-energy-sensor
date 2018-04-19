@@ -28,7 +28,7 @@ class powerWave
     float getHarmonic(int i);
     float getHarmonicAngle(int i);
     size_t getNumHarmoics();
-    void trimData(std::vector<float>& data, std::vector<unsigned long>& peaks);
+    void trimData(std::vector<float>& data, std::vector<int>& peaks);
 
     size_t _errVal;
   protected:

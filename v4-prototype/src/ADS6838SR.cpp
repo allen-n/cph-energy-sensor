@@ -7,14 +7,13 @@ uint8_t ads6838::tx_buffer_read8[16];
 
 /**
 	Converts from uint8_t to bitset
-	@param a byte in uint8_t format
+	@param byte ;a byte in uint8_t format
 	@return a byte in std::bitset<8> format
 **/
 std::bitset<8> to_bits(uint8_t byte)
 {
     return std::bitset<8>(byte);
 }
-
 
 /**
 	Initialize ads6838 internal class variables
@@ -124,18 +123,19 @@ void ads6838::read8(){
     // enable ADC SPI slave select
     digitalWrite(this->_SS, LOW);
     delayMicroseconds(1);
-		SPI.transfer(0x04); //manual register addressing command
+		SPI.transfer((0x04 << 1) & 0xfe); //manual register addressing command
     SPI.transfer(commandByte);
     // you might need to increase this delay for conversion
 		digitalWrite(this->_SS, HIGH);
-    delayMicroseconds(5);
+    delayMicroseconds(1);
 		// while(!(SPI.available())); //better alternative to blocking code
     // get results
 		digitalWrite(this->_SS, LOW);
 		delayMicroseconds(1);
+		// while(!(SPI.available())); // better alternative to blocking code, may not work
     result[0] = SPI.transfer(0);
     result[1] = SPI.transfer(0);
-
+		delayMicroseconds(1);
     // disable ADC SPI slave select
     digitalWrite(this->_SS, HIGH);
 

@@ -1,5 +1,5 @@
 #include "powerWave.h"
-// #include "Particle.h" //FIXME
+#include "Particle.h" //FIXME
 
 #define PI 3.14159265
 /*powerWave::powerWave(waveform& vWave, waveform& iWave) :
@@ -131,9 +131,8 @@ void powerWave::calcP()
   float pi = 3.1415;
   double buff[len];
 
-  // getting peakVect's using getFrequency()
-  // this->_iWave->getFrequency();
-  // trimData(this->_pData, this->_iWave->_peakVect); //We DO need the 'get frequency'
+
+  trimData(this->_pData, this->_iWave->_peakVect);
 
   for(size_t i=0; i<len; i++)
   {
@@ -148,7 +147,7 @@ void powerWave::calcP()
   }
 }
 
-void powerWave::trimData(std::vector<float>& data, std::vector<unsigned long>& peaks)
+void powerWave::trimData(std::vector<float>& data, std::vector<int>& peaks)
 {
   std::vector<float> temp = data;
   int size = data.size();
@@ -156,10 +155,11 @@ void powerWave::trimData(std::vector<float>& data, std::vector<unsigned long>& p
   size_t stop = 0;
   size_t i = 0;
   for (size_t i = 0; i < data.size(); i++) {
-    // Serial.print(peaks[i]); Serial.print(",");Serial.print(data[i]); Serial.print(","); //FIXME
-    // Serial.println(" ");
+    // FIXME: error in peak vector, the peak values aren't here, may be a pass by refernce error?
+    Serial.print(peaks[i]); Serial.print(",");Serial.print(data[i]); Serial.print(","); //FIXME
+    Serial.println(" ");
   }
-  // Serial.println(" , end data ");
+  Serial.println(" , end data ");Serial.println("");
   while(peaks[i] == 0 && i < peaks.size())
   {
     temp[i] = 0;

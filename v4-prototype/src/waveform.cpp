@@ -1,12 +1,13 @@
 #include "waveform.h"
-// #include "Particle.h" //FIXME
 
-waveform::waveform(int numPts, size_t filtKernalSize)
 /**
-initialize the wave object with the number of samples it will take
-as numPts and the size of its moving average filter kernal as
-filtKernalSize
+  initialize the wave object with the number of samples it will take
+  as numPts and the size of its moving average filter kernal as
+  filtKernalSize
+  @param int numPts, specif
+  @return
 **/
+waveform::waveform(int numPts, size_t filtKernalSize)
 {
   this->_numPts = numPts;
   this->_datapoints.clear();
@@ -77,11 +78,6 @@ void waveform::addData(unsigned long currentTime, double data)
   this->_posPointer++;
 }
 
-double waveform::getAverage()
-{
-  return this->_average;
-}
-
 //FIXME: WRITE AVG FILTER FUNCTION http:
 void waveform::movingAvgFilter()
 {
@@ -117,7 +113,7 @@ double waveform::getRMS(double offset)
 {
   if(this->_RMS == NULL)
   {
-    if(this->_amplitude == NULL) this->getAmplitude();
+    if(this->_amplitude == NULL) this->getAverage();
     double sum = 0;
     int numPts = this->_numPts;
     std::vector<double>& x = this->_datapoints;
@@ -129,31 +125,28 @@ double waveform::getRMS(double offset)
       double toAdd = (x[i] - this->_average);
       x[i] = toAdd; //NOTE: DC offset happens here
       sum+= toAdd*toAdd;
+      if(toAdd > this->_maxVal) this->_maxVal = toAdd;
+      if(toAdd < this->_minVal) this->_minVal = toAdd;
     }
     double temp = (sum/((double)numPts - index*2));
     this->_RMS = sqrt(temp);
 
-    // NOTE: Everything in this block is experimental and unverified
-    // double peak = this->getAmplitude()/4;
-    // for(int i = index + 1; i < numPts - index - 1; ++i)
-    // {
-    //   if((x[i-1] < x[i]) && (x[i+1] < x[i]) && (x[i] > peak)){
-    //     this->_peakVect[i] = 1;
-    //   } else {
-    //     this->_peakVect[i] = 0;
-    //   }
-    //   // FIXME
-    //   Serial.print("X: ,");Serial.print(x[i]);Serial.print("P: ,");Serial.print(this->_peakVect[i]);
-    //   Serial.println("");
-    // }
-    // // FIXME
-    // Serial.println("");
+    // NOTE: We are getting the amplitude of THE OTHER WAVEFORM
+    double peak = (this->_maxVal)/2;
+    for(int i = index + 1; i < numPts - index - 1; ++i)
+    {
+      if((x[i-1] <= x[i]) && (x[i+1] < x[i]) && (x[i] > peak)){
+        this->_peakVect[i] = 1;
+      } else {
+        this->_peakVect[i] = 0;
+      }
+    }
 
   }
   return this->_RMS;
 }
 
-double waveform::getAmplitude()
+double waveform::getAverage()
 //returns peak to peak value of the waveform
 {
   if(this->_average == NULL)
@@ -167,20 +160,21 @@ double waveform::getAmplitude()
     {
       double data = x[i];
       sum += data;
-      if(data > this->_maxVal) this->_maxVal = data;
-      if(data < this->_minVal) this->_minVal = data;
     }
     this->_average = sum/((double)numPts - index*2);
   }
-  return (this->_maxVal - this->_minVal);
+  return this->_average;
 }
 
+/**
+  Depreciated, don't use this.
+**/
 double waveform::getFrequency()
 {
 
   if(this->_frequency == NULL)
   {
-    if(this->_average == NULL) this->getAmplitude();
+    if(this->_average == NULL) this->getAverage();
 
     int numPts = this->_numPts;
     size_t index = (this->_filtKernalSize-1)/2;
@@ -193,7 +187,7 @@ double waveform::getFrequency()
       double next = x[i+1];
       double next2 = x[i+2];
       double avg = this->_average;
-      double peak = this->_average + this->getAmplitude()/2;
+      double peak = this->_average + this->getAverage()/2;
       if(prev > avg && next2 < avg && next <= avg && current >= avg) //TODO: keep fixing peak finder
       {
         this->_peakVect[i] = (this->_timeStamp[i] + this->_timeStamp[i+1])/2;

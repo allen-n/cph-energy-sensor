@@ -13,7 +13,6 @@ class waveform
 public:
   void addData(unsigned long currentTime, double data);
   double getRMS(double offset = 0);//get RMS value for waveform
-  double getAmplitude();//get amplitude
   double getFrequency();//get frequency
   bool dataFull();
   void resetWave();
@@ -25,7 +24,7 @@ public:
   double _RMS = NULL;
   std::vector<double> _datapoints;
   // std::vector<double> _filterDatapoints;
-  std::vector<unsigned long> _peakVect;
+  std::vector<int> _peakVect;
   bool _isFiltered = false;
   size_t _filtKernalSize = 11;
 
