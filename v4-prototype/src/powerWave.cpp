@@ -1,5 +1,4 @@
 #include "powerWave.h"
-#include "Particle.h" //FIXME
 
 #define PI 3.14159265
 /*powerWave::powerWave(waveform& vWave, waveform& iWave) :
@@ -10,10 +9,6 @@ powerWave::powerWave(int numPts, int SAMPLE_RATE)
 {
   this->_pData.clear();
   this->_pDataAngle.clear();
-  /*this->_pDataSize = (numPts - 2);
-  this->_pData.resize(this->_pDataSize);*/
-  /*this->_vWave = & vWave;
-  this->_iWave = & iWave;*/
   this->_vWave = NULL;
   this->_iWave = NULL;
   this->_SAMPLE_RATE = SAMPLE_RATE;
@@ -28,13 +23,6 @@ void powerWave::clearWave()
   this->_PF = NULL;
   std::fill(_pData.begin(), _pData.end(), 0);
   std::fill(_pDataAngle.begin(), _pDataAngle.end(), 0);
-  // for(size_t i = 0; i < this->_pData.size(); i++)
-  // {
-  //   this->_pData[i] = 0;
-  //   this->_pDataAngle[i] = 0;
-  // }
-  /*this->_vWave = NULL;
-  this->_iWave = NULL;*/
 }
 
 void powerWave::addComponents(waveform& vWave, waveform& iWave)
@@ -104,21 +92,16 @@ void powerWave::calcP()
     double sum = 0;
     double v = 0;
     double i = 0;
-    // double i_avg = this->_iWave->getAverage();
-    // double v_avg = this->_vWave->getAverage();
     size_t index = (this->_iWave->_filtKernalSize-1)/2;
     std::vector<double>& vb = this->_vWave->_datapoints;
     std::vector<double>& ib = this->_iWave->_datapoints;
-    // if(this->_iWave->_isFiltered){
-    //   vb = this->_vWave->_filterDatapoints;
-    //   ib = this->_iWave->_filterDatapoints;
-    // }
+    std::vector<int> temp_peaks = this->_iWave->_peakVect;
     for(int m = index; m < size - index; ++m)
     {
-      v = vb[m]; // - v_avg;
-      i = ib[m]; // - i_avg;
-      // this->_pData[m-index] = i*v;
+      v = vb[m];
+      i = ib[m];
       this->_pData[m-index] = i; //FFT on just current
+      this->_iWave->_peakVect[m-index] = temp_peaks[m];
       sum += v*i;
     }
     this->_realP = sum/(size-(2.0*index));
@@ -136,8 +119,7 @@ void powerWave::calcP()
 
   for(size_t i=0; i<len; i++)
   {
-    //Blackman Window Function from http://www.dspguide.com/ch16/1.htm
-    // buff[i] = this->_pData[i]*(0.42 - .5*cos(2*pi*(i)/len) + 0.08*cos(4*pi*(i)/len));
+
     buff[i] = this->_pData[i];
   }
   for(size_t i=0; i<len*2; i++)
@@ -154,12 +136,6 @@ void powerWave::trimData(std::vector<float>& data, std::vector<int>& peaks)
   size_t start = 0;
   size_t stop = 0;
   size_t i = 0;
-  for (size_t i = 0; i < data.size(); i++) {
-    // FIXME: error in peak vector, the peak values aren't here, may be a pass by refernce error?
-    Serial.print(peaks[i]); Serial.print(",");Serial.print(data[i]); Serial.print(","); //FIXME
-    Serial.println(" ");
-  }
-  Serial.println(" , end data ");Serial.println("");
   while(peaks[i] == 0 && i < peaks.size())
   {
     temp[i] = 0;

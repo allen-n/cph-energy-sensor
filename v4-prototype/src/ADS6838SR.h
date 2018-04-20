@@ -57,6 +57,8 @@ protected:
 	// 	volt1, curr1, curr2, curr3, curr4, curr5, curr6, volt2, temp
 	// };
 	// SPI pin definitions
+	const uint8_t _SSA0 = A1;
+	const uint8_t _SSA1 = A0;
 	const uint8_t _SS = A2;
 	const uint8_t _SCLK = A3;
 	const uint8_t _SDOUT = A4;

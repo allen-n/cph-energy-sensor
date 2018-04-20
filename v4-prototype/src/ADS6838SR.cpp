@@ -55,6 +55,8 @@ void ads6838::init(uint8_t clk_speed){
 	// Must call init() once, pass optional clk_speed argument to specify
 	// a clk other than default (20 MHZ) as an unsigned 8 bit int
 	pinMode(this->_SS, OUTPUT);
+  pinMode(this->_SSA0, OUTPUT);
+  pinMode(this->_SSA1, OUTPUT);
 	digitalWrite(this->_SS, HIGH);
 	SPI.setBitOrder(MSBFIRST);
 	SPI.setClockSpeed(clk_speed, MHZ);
@@ -113,20 +115,25 @@ void ads6838::read8(){
 		// 111 = Powers down the device immediately after the 16th SCLK falling edge
 		commandByte = 1; // x; //FIXME
 		commandByte = commandByte << 4;
-		commandByte = commandByte & 0x70;
-		uint8_t range = (0x03 << 1) & 0x0e;
+		commandByte = commandByte & 0xe0;
+		uint8_t range = 0x06; //(0x03 << 1) & 0x0e;
 		commandByte = commandByte | range;
 		// commandByte = commandByte | 0x01; //get temp values, FIXME
 		//zero last bit to prevent temp value
 		// commandByte = commandByte & 0xfe;
 
+    // chip select on
     // enable ADC SPI slave select
     digitalWrite(this->_SS, LOW);
+    digitalWrite(this->_SSA0, LOW);
+    digitalWrite(this->_SSA1, LOW);
     delayMicroseconds(1);
 		SPI.transfer((0x04 << 1) & 0xfe); //manual register addressing command
     SPI.transfer(commandByte);
     // you might need to increase this delay for conversion
 		digitalWrite(this->_SS, HIGH);
+
+
     delayMicroseconds(1);
 		// while(!(SPI.available())); //better alternative to blocking code
     // get results

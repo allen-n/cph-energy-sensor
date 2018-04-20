@@ -29,7 +29,7 @@ class circuitVal
       String get_data_string();
 
   protected:
-    static const int _buff_size = 15;
+    static const int _buff_size = 35;
     static const int _num_harmonics = 6;
     int ptr = 0;
     double vRMS_buff[_buff_size];
