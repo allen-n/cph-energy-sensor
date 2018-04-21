@@ -34,6 +34,8 @@
 
 #define ADS8638_SPI_WRITE_FLAG 0x1
 
+#define TX_BUFFER_SIZE 8
+
 // SPI pin definitions
 // #define _SS A2;
 // #define _SCLK A3;
@@ -43,7 +45,7 @@ class ads6838
 {
 public:
 	ads6838(); //passing initialized SPI object, desired clk
-	void get8_DMA(uint8_t* rx_dest);
+	void get8_DMA(uint16_t* rx_dest);
 	void read8_DMA(uint8_t &flag);
 	void read8();
 	void init(uint8_t clk_speed = 20);
@@ -65,9 +67,9 @@ protected:
 	const uint8_t _SDIN = A5;
 
 	// buffers for 128 bit SPI transfer, i.e. 16 bytes
-	static uint8_t rx_buffer[16];
-	static uint8_t tx_buffer[16];
-	static uint8_t tx_buffer_read8[16]; //reference for read8 SPI command
+	static uint16_t rx_buffer[TX_BUFFER_SIZE];
+	static uint16_t tx_buffer[TX_BUFFER_SIZE];
+	static uint16_t tx_buffer_read8[TX_BUFFER_SIZE]; //reference for read8 SPI command
 	static uint8_t select_state;
 	static uint8_t transfer_state;
 

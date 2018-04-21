@@ -23,10 +23,13 @@ void setup(){
   delay(1000);
 }
 
-
+uint16_t rx_dest[TX_BUFFER_SIZE];
+uint8_t flag = 0;
 void loop(){
   digitalWrite(D7, LOW);
   MY_ADC.read8();
+  // MY_ADC.read8_DMA(flag);
+  // if(flag) MY_ADC.get8_DMA(rx_dest);
   digitalWrite(D7, HIGH);
 }
 

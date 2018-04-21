@@ -3,7 +3,9 @@
 //define static member variables definitions
 uint8_t ads6838::transfer_state;
 uint8_t ads6838::select_state;
-uint8_t ads6838::tx_buffer_read8[16];
+uint16_t ads6838::tx_buffer_read8[TX_BUFFER_SIZE];
+uint16_t ads6838::rx_buffer[TX_BUFFER_SIZE];
+uint16_t ads6838::tx_buffer[TX_BUFFER_SIZE];
 
 /**
 	Converts from uint8_t to bitset
@@ -15,12 +17,22 @@ std::bitset<8> to_bits(uint8_t byte)
     return std::bitset<8>(byte);
 }
 
-// std::bitset<16> to_bits(uint8_t msb, uint8_t lsb)
-// {
-//     uint16_t byte = (msb << 8) & 0xf0;
-//     byte = byte | (uint16_t)lsb;
-//     return std::bitset<16>(byte);
-// }
+std::bitset<16> to_bits(uint8_t msb, uint8_t lsb)
+{
+  // FIXME: Be careful about endian-ness
+    uint16_t byte = (msb << 8) & 0xf0;
+    byte = byte | (uint16_t)lsb;
+    return std::bitset<16>(byte);
+}
+
+typedef struct {
+  uint8_t reg;
+  uint16_t reg_val;
+} regBuff;
+
+regBuff to_regBuff(uint16_t rx_value){
+
+}
 
 /**
 	Initialize ads6838 internal class variables
@@ -37,13 +49,12 @@ ads6838::ads6838(){
 	uint8_t k = 0;
 	for (uint8_t i = 0; i < sizeof(this->tx_buffer_read8); i++) {
 		if(i%2 == 0) {
-			commandByte = (0x04 << 1) & 0xfe; //[15:9] reg addr, [8] read/write
+			commandByte = (ADS8638_REG_MANUAL << 1) & 0xfe; //[15:9] reg addr, [8] read/write
 		} else {
 			// [7] always 0, [6:4] channel sel, [3:1] range sel, [0] temp sel
 			commandByte = k; k++;
 			commandByte = commandByte << 4;
-			commandByte = commandByte & 0x70;
-			uint8_t range = (0x03 << 1) & 0x0e;
+			uint8_t range = (ADS8638_RANGE_PLUS_5V << 1);
 			commandByte = commandByte | range;
 		}
 		this->tx_buffer_read8[i] = commandByte;
@@ -64,7 +75,12 @@ void ads6838::init(uint8_t clk_speed){
 	pinMode(this->_SS, OUTPUT);
   pinMode(this->_SSA0, OUTPUT);
   pinMode(this->_SSA1, OUTPUT);
+  // deselect slave
 	digitalWrite(this->_SS, HIGH);
+  // select SPI 0 interface on isolator mux
+  digitalWrite(this->_SSA0, LOW);
+  digitalWrite(this->_SSA1, LOW);
+  // setting SPI interface
 	SPI.setBitOrder(MSBFIRST);
 	SPI.setClockSpeed(clk_speed, MHZ);
 	// https://en.wikipedia.org/wiki/Serial_Peripheral_Interface_Bus
@@ -87,7 +103,7 @@ void ads6838::read8_DMA(uint8_t &flag){
 
 
 void ads6838::trasnferHandler(){
-	transfer_state = 1;
+	transfer_state = 0x01;
 }
 
 
@@ -96,10 +112,19 @@ void ads6838::trasnferHandler(){
 	@param uint8_t* rx_dest, must have equal size to ads6838->rx_buffer
 	@return null
 **/
-void ads6838::get8_DMA(uint8_t* rx_dest){
+void ads6838::get8_DMA(uint16_t* rx_dest){
 	this->transfer_state = 0;
+  uint8_t count = sizeof(rx_buffer);
 	// TODO: Add postprocessing to turn get the actual values out of the rx buffer
-	std::memcpy(rx_dest, this->rx_buffer, sizeof(this->rx_buffer));
+	std::memcpy(rx_dest, this->rx_buffer, count);
+  for (uint8_t i = 0; i < count; i++) {
+    int out = rx_dest[i];
+    for (uint8_t j = 0; j < 8; j++) {
+      Serial.print((out >> i) & 0x01);
+    }
+    Serial.println("");
+  }
+  Serial.println("");
 }
 
 /**
@@ -110,6 +135,7 @@ void ads6838::get8_DMA(uint8_t* rx_dest){
 void ads6838::read8(){
 	uint8_t commandByte;
   uint8_t result[2];
+  uint16_t result16;
 	for(uint8_t x=0;x<8;x++) {
     // set to adc#
 		// 000 = Ranges as selected through the configuration registers (address 10h to 13h, page 0)
@@ -123,12 +149,12 @@ void ads6838::read8(){
 		commandByte = x; //FIXME
 		commandByte = commandByte << 4;
 		// commandByte = commandByte & 0xe0;
-		uint8_t range = 0x06 << 1;
+		uint8_t range = ADS8638_RANGE_PLUS_5V << 1;
 		commandByte = commandByte | range;
 		// commandByte = commandByte | 0x01; //get temp values, FIXME
 		//zero last bit to prevent temp value
 		// commandByte = commandByte & 0xfe;
-    std::bitset<8> addr_byte = to_bits((0x04 << 1));
+    std::bitset<8> addr_byte = to_bits((ADS8638_REG_MANUAL << 1));
     std::bitset<8> cmd_byte = to_bits(commandByte);
     Serial.print("Command Byte: ");
     for (int i = 7; i >= 0; --i) {
@@ -142,10 +168,8 @@ void ads6838::read8(){
     // chip select on
     // enable ADC SPI slave select
     digitalWrite(this->_SS, LOW);
-    digitalWrite(this->_SSA0, LOW);
-    digitalWrite(this->_SSA1, LOW);
     delayMicroseconds(1);
-		SPI.transfer((0x04 << 1) & 0xfe); //manual register addressing command
+		SPI.transfer((ADS8638_REG_MANUAL << 1) & 0xfe); //manual register addressing command
     SPI.transfer(commandByte);
     // you might need to increase this delay for conversion
 		digitalWrite(this->_SS, HIGH);
@@ -159,6 +183,7 @@ void ads6838::read8(){
 		// while(!(SPI.available())); // better alternative to blocking code, may not work
     result[0] = SPI.transfer(0);
     result[1] = SPI.transfer(0);
+    result16 = result[0];
 		delayMicroseconds(1);
     // disable ADC SPI slave select
     digitalWrite(this->_SS, HIGH);
