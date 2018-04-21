@@ -15,6 +15,13 @@ std::bitset<8> to_bits(uint8_t byte)
     return std::bitset<8>(byte);
 }
 
+// std::bitset<16> to_bits(uint8_t msb, uint8_t lsb)
+// {
+//     uint16_t byte = (msb << 8) & 0xf0;
+//     byte = byte | (uint16_t)lsb;
+//     return std::bitset<16>(byte);
+// }
+
 /**
 	Initialize ads6838 internal class variables
 		https://docs.particle.io/reference/firmware/photon/#setbitorder-
@@ -113,15 +120,25 @@ void ads6838::read8(){
 		// 101 = Range is set to 0V to 10V
 		// 110 = Range is set to 0V to 5V
 		// 111 = Powers down the device immediately after the 16th SCLK falling edge
-		commandByte = 1; // x; //FIXME
+		commandByte = x; //FIXME
 		commandByte = commandByte << 4;
-		commandByte = commandByte & 0xe0;
-		uint8_t range = 0x06; //(0x03 << 1) & 0x0e;
+		// commandByte = commandByte & 0xe0;
+		uint8_t range = 0x06 << 1;
 		commandByte = commandByte | range;
 		// commandByte = commandByte | 0x01; //get temp values, FIXME
 		//zero last bit to prevent temp value
 		// commandByte = commandByte & 0xfe;
-
+    std::bitset<8> addr_byte = to_bits((0x04 << 1));
+    std::bitset<8> cmd_byte = to_bits(commandByte);
+    Serial.print("Command Byte: ");
+    for (int i = 7; i >= 0; --i) {
+			Serial.print(addr_byte[i]);
+		}
+    Serial.print(" ");
+    for (int i = 7; i >= 0; --i) {
+			Serial.print(cmd_byte[i]);
+		}
+    Serial.println("");
     // chip select on
     // enable ADC SPI slave select
     digitalWrite(this->_SS, LOW);
@@ -152,10 +169,10 @@ void ads6838::read8(){
 		Serial.print("AD");
     Serial.print(x);
 		Serial.print(" = ");
-		for (size_t i = 0; i < 8; i++) {
+		for (int i = 7; i >= 0; --i) {
 			Serial.print(r1[i]);
 		}
-		for (size_t i = 0; i < 8; i++) {
+		for (int i = 7; i >= 0; --i) {
 			Serial.print(r2[i]);
 		}
 		Serial.print(" ");
