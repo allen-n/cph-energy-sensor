@@ -15,12 +15,13 @@ std::bitset<8> to_bits(uint8_t byte)
     return std::bitset<8>(byte);
 }
 
-// std::bitset<16> to_bits(uint8_t msb, uint8_t lsb)
-// {
-//     uint16_t byte = (msb << 8) & 0xf0;
-//     byte = byte | (uint16_t)lsb;
-//     return std::bitset<16>(byte);
-// }
+std::bitset<16> to_bits(uint8_t msb, uint8_t lsb)
+{
+    uint16_t byte = msb;
+    byte =  (byte << 8);
+    byte = byte | lsb;
+    return std::bitset<16>(byte);
+}
 
 /**
 	Initialize ads6838 internal class variables
@@ -37,13 +38,13 @@ ads6838::ads6838(){
 	uint8_t k = 0;
 	for (uint8_t i = 0; i < sizeof(this->tx_buffer_read8); i++) {
 		if(i%2 == 0) {
-			commandByte = (0x04 << 1) & 0xfe; //[15:9] reg addr, [8] read/write
+			commandByte = (ADS8638_REG_MANUAL << 1) & 0xfe; //[15:9] reg addr, [8] read/write
 		} else {
 			// [7] always 0, [6:4] channel sel, [3:1] range sel, [0] temp sel
 			commandByte = k; k++;
 			commandByte = commandByte << 4;
 			commandByte = commandByte & 0x70;
-			uint8_t range = (0x03 << 1) & 0x0e;
+			uint8_t range = (ADS8638_RANGE_2_5V << 1) & 0x0e;
 			commandByte = commandByte | range;
 		}
 		this->tx_buffer_read8[i] = commandByte;
@@ -65,6 +66,9 @@ void ads6838::init(uint8_t clk_speed){
   pinMode(this->_SSA0, OUTPUT);
   pinMode(this->_SSA1, OUTPUT);
 	digitalWrite(this->_SS, HIGH);
+  // selecting correct SPI interface on digital isolator
+  digitalWrite(this->_SSA0, LOW);
+  digitalWrite(this->_SSA1, LOW);
 	SPI.setBitOrder(MSBFIRST);
 	SPI.setClockSpeed(clk_speed, MHZ);
 	// https://en.wikipedia.org/wiki/Serial_Peripheral_Interface_Bus
@@ -107,76 +111,65 @@ void ads6838::get8_DMA(uint8_t* rx_dest){
 	@param uint8_t flag, set to 1 when read is complete
 	@return null
 **/
-void ads6838::read8(){
+void ads6838::read8(uint8_t addr, uint8_t range){
 	uint8_t commandByte;
   uint8_t result[2];
+  uint8_t commandAddr = (addr << 1) & 0xfe;
 	for(uint8_t x=0;x<8;x++) {
-    // set to adc#
-		// 000 = Ranges as selected through the configuration registers (address 10h to 13h, page 0)
-		// 001 = Range is set to ±10V
-		// 010 = Range is set to ±5V
-		// 011 = Range is set to ±2.5V
-		// 100 = Reserved; do not use this setting
-		// 101 = Range is set to 0V to 10V
-		// 110 = Range is set to 0V to 5V
-		// 111 = Powers down the device immediately after the 16th SCLK falling edge
-		commandByte = x; //FIXME
-		commandByte = commandByte << 4;
-		// commandByte = commandByte & 0xe0;
-		uint8_t range = 0x06 << 1;
-		commandByte = commandByte | range;
+
+		commandByte = (x << 4) | (range << 1);
 		// commandByte = commandByte | 0x01; //get temp values, FIXME
-		//zero last bit to prevent temp value
-		// commandByte = commandByte & 0xfe;
-    std::bitset<8> addr_byte = to_bits((0x04 << 1));
-    std::bitset<8> cmd_byte = to_bits(commandByte);
-    Serial.print("Command Byte: ");
-    for (int i = 7; i >= 0; --i) {
-			Serial.print(addr_byte[i]);
-		}
-    Serial.print(" ");
-    for (int i = 7; i >= 0; --i) {
-			Serial.print(cmd_byte[i]);
-		}
-    Serial.println("");
+
+    // // NOTE: DEBUG for command word
+    // std::bitset<8> addr_byte = to_bits((addr << 1));
+    // std::bitset<8> cmd_byte = to_bits(commandByte);
+    // Serial.print("Command Byte: ");
+    // for (int i = 7; i >= 0; --i) {
+		// 	Serial.print(addr_byte[i]);
+		// }
+    // Serial.print(" ");
+    // for (int i = 7; i >= 0; --i) {
+		// 	Serial.print(cmd_byte[i]);
+		// }
+    // Serial.println("");
     // chip select on
     // enable ADC SPI slave select
     digitalWrite(this->_SS, LOW);
-    digitalWrite(this->_SSA0, LOW);
-    digitalWrite(this->_SSA1, LOW);
-    delayMicroseconds(1);
-		SPI.transfer((0x04 << 1) & 0xfe); //manual register addressing command
+    // delayMicroseconds(1);
+		SPI.transfer(commandAddr); //manual register addressing command
     SPI.transfer(commandByte);
     // you might need to increase this delay for conversion
 		digitalWrite(this->_SS, HIGH);
 
 
-    delayMicroseconds(1);
-		// while(!(SPI.available())); //better alternative to blocking code
+    // delayMicroseconds(1);
     // get results
 		digitalWrite(this->_SS, LOW);
-		delayMicroseconds(1);
+		// delayMicroseconds(1);
 		// while(!(SPI.available())); // better alternative to blocking code, may not work
     result[0] = SPI.transfer(0);
     result[1] = SPI.transfer(0);
-		delayMicroseconds(1);
+
+		// delayMicroseconds(1);
     // disable ADC SPI slave select
     digitalWrite(this->_SS, HIGH);
 
-		std::bitset<8> r1 = to_bits(result[0]);
-		std::bitset<8> r2 = to_bits(result[1]);
+    uint8_t reg = (result[0] >> 4) & 0x0f;
+    uint16_t val = (result[0]) & 0x0f;
+    val = (val << 8) | result[1];
 
-		Serial.print("AD");
-    Serial.print(x);
-		Serial.print(" = ");
-		for (int i = 7; i >= 0; --i) {
-			Serial.print(r1[i]);
-		}
-		for (int i = 7; i >= 0; --i) {
-			Serial.print(r2[i]);
-		}
-		Serial.print(" ");
-    Serial.println();
-    delay(100);
+    // // NOTE: Debug for SPI output
+		// Serial.print("AD");
+    // Serial.print(x);
+		// Serial.print(" = ");
+    // Serial.print(reg);Serial.print(" : ");
+    // Serial.print(val);Serial.print(" : ");
+    // std::bitset<16> res = to_bits(result[0], result[1]);
+    // for (int i = 15; i >= 0; --i) {
+		// 	Serial.print(res[i]);
+		// }
+		// Serial.print(" ");
+    // Serial.println();
+    // delay(100);
   }
 }

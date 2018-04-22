@@ -45,7 +45,7 @@ public:
 	ads6838(); //passing initialized SPI object, desired clk
 	void get8_DMA(uint8_t* rx_dest);
 	void read8_DMA(uint8_t &flag);
-	void read8();
+	void read8(uint8_t addr = ADS8638_REG_MANUAL, uint8_t range = ADS8638_RANGE_PLUS_5V);
 	void init(uint8_t clk_speed = 20);
 
 protected:

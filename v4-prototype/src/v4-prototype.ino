@@ -6,10 +6,13 @@
  */
 
 #include "ADS6838SR.h"
+// FIXME:
+// replace SparkIntervalTimer with:
+// https://docs.particle.io/reference/firmware/electron/#class-member-callbacks
 
 ads6838 MY_ADC;
 void setup(){
-  MY_ADC.init(1);
+  MY_ADC.init(20);
   pinMode(D0, OUTPUT);
   // digitalWrite(D0, HIGH);
   pinMode(D1, OUTPUT);
@@ -26,8 +29,13 @@ void setup(){
 
 void loop(){
   digitalWrite(D7, LOW);
+  Serial.println(micros());
   MY_ADC.read8();
+  // runs at 5.2 kHz with all 8 channels and 20 MHz clk
+  // runs at 17.8 kHz for a single channel and 20MHz clk
+  Serial.println(micros());
   digitalWrite(D7, HIGH);
+  delay(100);
 }
 
 //
