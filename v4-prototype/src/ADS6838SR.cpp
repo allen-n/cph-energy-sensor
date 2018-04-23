@@ -36,6 +36,7 @@ std::bitset<16> to_bits(uint8_t msb, uint8_t lsb)
 ads6838::ads6838(){
 	uint8_t commandByte;
 	uint8_t k = 0;
+  this->_range = ADS8638_RANGE_2_5V;
 	for (uint8_t i = 0; i < sizeof(this->tx_buffer_read8); i++) {
 		if(i%2 == 0) {
 			commandByte = (ADS8638_REG_MANUAL << 1) & 0xfe; //[15:9] reg addr, [8] read/write
@@ -59,6 +60,29 @@ ads6838::ads6838(){
 	@param uint8_t clk_speed , desired clock speed in MHz
 	@return null
 **/
+
+void ads6838::writeCmd(uint8_t addr, uint8_t cmd){
+  digitalWrite(this->_SS, LOW);
+  // delayMicroseconds(1);
+  SPI.transfer((addr << 1) & 0xfe); //manual register addressing command
+  SPI.transfer(cmd);
+  // you might need to increase this delay for conversion
+  digitalWrite(this->_SS, HIGH);
+}
+
+uint8_t ads6838::readReg(uint8_t addr){
+  uint8_t out;
+  digitalWrite(this->_SS, LOW);
+  // delayMicroseconds(1);
+  SPI.transfer((addr << 1) | 0x01); //manual register addressing command
+  out = SPI.transfer(0);
+  // you might need to increase this delay for conversion
+  digitalWrite(this->_SS, HIGH);
+
+  return out;
+}
+
+
 void ads6838::init(uint8_t clk_speed){
 	// Must call init() once, pass optional clk_speed argument to specify
 	// a clk other than default (20 MHZ) as an unsigned 8 bit int
@@ -74,6 +98,15 @@ void ads6838::init(uint8_t clk_speed){
 	// https://en.wikipedia.org/wiki/Serial_Peripheral_Interface_Bus
 	SPI.setDataMode(SPI_MODE1);
 	SPI.begin();
+  uint8_t range = this->_range;
+  range = (range << 4) | range;
+  writeCmd(0x10, range);
+  writeCmd(0x11, range);
+  writeCmd(0x12, range);
+  writeCmd(0x13, range);
+  writeCmd(0x06, 0x04); //configure internal reference
+  SPI.transfer(0);
+  SPI.transfer(0);
 }
 
 /**
@@ -106,16 +139,59 @@ void ads6838::get8_DMA(uint8_t* rx_dest){
 	std::memcpy(rx_dest, this->rx_buffer, sizeof(this->rx_buffer));
 }
 
+void ads6838::selectChannel(uint8_t channel){
+  digitalWrite(this->_SS, LOW);
+  // delayMicroseconds(1);
+  SPI.transfer(ADS8638_REG_MANUAL << 1); //manual register addressing command
+  SPI.transfer((channel << 4) | (this->_range << 1)); //manual register addressing command
+
+  // you might need to increase this delay for conversion
+  digitalWrite(this->_SS, HIGH);
+}
+
+uint16_t ads6838::read1(uint8_t channel, uint8_t range){
+	uint8_t commandByte;
+  uint8_t result[2];
+	commandByte = (channel << 4) | (range << 1);
+	
+  digitalWrite(this->_SS, LOW);
+  // delayMicroseconds(1);
+	SPI.transfer(ADS8638_REG_MANUAL << 1); //manual register addressing command
+  SPI.transfer(commandByte);
+  // you might need to increase this delay for conversion
+	digitalWrite(this->_SS, HIGH);
+
+
+  // delayMicroseconds(1);
+  // get results
+	digitalWrite(this->_SS, LOW);
+	// delayMicroseconds(1);
+	// while(!(SPI.available())); // better alternative to blocking code, may not work
+  result[0] = SPI.transfer(0x00);
+  result[1] = SPI.transfer(0x00);
+
+	// delayMicroseconds(1);
+  // disable ADC SPI slave select
+  digitalWrite(this->_SS, HIGH);
+
+  uint16_t out = result[0];
+  out = (out << 8) | result[1];
+  return out;
+
+
+}
+
 /**
 	TEST FUNCTION
 	@param uint8_t flag, set to 1 when read is complete
 	@return null
 **/
-void ads6838::read8(uint8_t addr, uint8_t range){
+void ads6838::read8(uint16_t* out, uint8_t addr, uint8_t range){
 	uint8_t commandByte;
   uint8_t result[2];
-  uint8_t commandAddr = (addr << 1) & 0xfe;
-	for(uint8_t x=0;x<8;x++) {
+  uint8_t commandAddr = (addr << 1); // & 0xfe;
+
+	for(uint8_t x=0;x<8;x++) { // FIXME: just checking probed curred1 track
 
 		commandByte = (x << 4) | (range << 1);
 		// commandByte = commandByte | 0x01; //get temp values, FIXME
@@ -147,18 +223,21 @@ void ads6838::read8(uint8_t addr, uint8_t range){
 		digitalWrite(this->_SS, LOW);
 		// delayMicroseconds(1);
 		// while(!(SPI.available())); // better alternative to blocking code, may not work
-    result[0] = SPI.transfer(0);
-    result[1] = SPI.transfer(0);
+    result[0] = SPI.transfer(0x00);
+    result[1] = SPI.transfer(0x00);
 
 		// delayMicroseconds(1);
     // disable ADC SPI slave select
     digitalWrite(this->_SS, HIGH);
 
-    uint8_t reg = (result[0] >> 4) & 0x0f;
-    uint16_t val = (result[0]) & 0x0f;
-    val = (val << 8) | result[1];
-
-    // // NOTE: Debug for SPI output
+    out[x] = result[0];
+    out[x] = (out[x] << 8) | result[1];
+    // Serial.println(out[1]);
+    // uint8_t reg = (result[0] >> 4) & 0x0f;
+    // uint16_t val = (result[0]) & 0x0f;
+    // val = (val << 8) | result[1];
+    //
+    // // // NOTE: Debug for SPI output
 		// Serial.print("AD");
     // Serial.print(x);
 		// Serial.print(" = ");

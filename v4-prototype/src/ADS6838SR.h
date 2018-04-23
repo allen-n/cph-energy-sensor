@@ -45,8 +45,12 @@ public:
 	ads6838(); //passing initialized SPI object, desired clk
 	void get8_DMA(uint8_t* rx_dest);
 	void read8_DMA(uint8_t &flag);
-	void read8(uint8_t addr = ADS8638_REG_MANUAL, uint8_t range = ADS8638_RANGE_PLUS_5V);
+	void read8(uint16_t* out, uint8_t addr = ADS8638_REG_MANUAL, uint8_t range = ADS8638_RANGE_5V);
 	void init(uint8_t clk_speed = 20);
+	void writeCmd(uint8_t addr, uint8_t cmd);
+	uint8_t readReg(uint8_t addr);
+	void selectChannel(uint8_t channel);
+	uint16_t read1(uint8_t channel, uint8_t range = ADS8638_RANGE_5V);
 
 protected:
 	// bit addresses of analog pins
@@ -63,6 +67,7 @@ protected:
 	const uint8_t _SCLK = A3;
 	const uint8_t _SDOUT = A4;
 	const uint8_t _SDIN = A5;
+	uint8_t _range;
 
 	// buffers for 128 bit SPI transfer, i.e. 16 bytes
 	static uint8_t rx_buffer[16];

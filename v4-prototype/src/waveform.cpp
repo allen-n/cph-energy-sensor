@@ -1,5 +1,6 @@
 #include "waveform.h"
-
+// FIXME:
+// #include "Particle.h"
 /**
   initialize the wave object with the number of samples it will take
   as numPts and the size of its moving average filter kernal as
@@ -97,6 +98,7 @@ void waveform::movingAvgFilter()
   {
     acc+=x[i];
   }
+
   y[p] = acc/kernSize;
 
   for(size_t i = p+1; i < len - p; i++)
@@ -127,7 +129,9 @@ double waveform::getRMS(double offset)
       sum+= toAdd*toAdd;
       if(toAdd > this->_maxVal) this->_maxVal = toAdd;
       if(toAdd < this->_minVal) this->_minVal = toAdd;
+      // Serial.println(x[i]); //FIXME:
     }
+    // Serial.println(); //FIXME:
     double temp = (sum/((double)numPts - index*2));
     this->_RMS = sqrt(temp);
 
