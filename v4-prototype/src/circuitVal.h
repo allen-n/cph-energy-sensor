@@ -8,7 +8,11 @@
 class circuitVal
 {
   public:
-    circuitVal(double deltaCurrent = 0.01, unsigned long deltaTime = 1500);
+    circuitVal(double deltaCurrent = 0.02, unsigned long deltaTime = 1500);
+    // NOTE: set to differentiate between loads that
+    // have at least 40 mA difference over time periods of 1.
+    // lowering current threshold reduces number of reads, but
+    // increases the variability between readings
     void addData(
       double iRMS,
       double vRMS,

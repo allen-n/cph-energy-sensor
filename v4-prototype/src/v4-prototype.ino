@@ -52,75 +52,105 @@
 #include "SparkIntervalTimer.h"
 #include "ADS6838SR.h"
 
+// Defining int constants cooresponding to ADS6838SR channels
+#define ADS8638_VOLT1 0x0
+#define ADS8638_CURR1 0x1 //100A Branch
+#define ADS8638_CURR2 0x2 //100A Branch
+#define ADS8638_CURR3 0x3
+#define ADS8638_CURR4 0x4
+#define ADS8638_CURR5 0x5
+#define ADS8638_CURR6 0x6
+#define ADS8638_VOLT2 0x7
 
+// Setting sample rates for branch circuits and 2 mains
 const size_t FILTER_KERNAL_SIZE = 2; //must be even
 const size_t SAMPLE_BUF_SIZE =  512 + FILTER_KERNAL_SIZE; //these rates are doubled from base
-const long SAMPLE_RATE = 2048*4; //4096*2;
-const int SAMPLE_RATE_SHIFT = log(SAMPLE_RATE)/log(2);
-const int ipin1 = A1;
-const int vpin1 = A0;
-const int relay1 = D0;
+// main #1
+const long SAMPLE_RATE_VOLT1 = 1024;
+const int SAMPLE_RATE_SHIFT_VOLT1 = log(SAMPLE_RATE_VOLT1)/log(2);
+// main #2
+const long SAMPLE_RATE_VOLT2 = 1024;
+const int SAMPLE_RATE_SHIFT_VOLT2 = log(SAMPLE_RATE_VOLT2)/log(2);
+// Branch circuits
+const long SAMPLE_RATE_BRANCH = 8192;
+const int SAMPLE_RATE_SHIFT_BRANCH = log(SAMPLE_RATE_BRANCH)/log(2);
+
+// defining LED Constants //FIXME? don't these need to be defined?
+// const int LED1 = D0;
+// const int LED2 = D1;
+// const int LED3 = D2;
+// const int LED4 = D3;
+
+// Configuring Serial output (SERIAL_DEBUG) or webhook output (!SERIAL_DEBUG)
 const bool SERIAL_DEBUG = true;
 
-enum State { STATE_INIT, STATE_COLLECT, STATE_TRANSFER, STATE_PROCESS };
+// # of circuits being monitored, i.e. # ADC Channels - # mains voltages
+const uint8_t NUM_CIRCUITS = 6;
 
+// states for data processing in main loop()
+enum State { STATE_INIT = 0, STATE_COLLECT, STATE_TRANSFER, STATE_PROCESS };
+
+// states for active circuit being monitored
+enum ACTIVE_CIRCUIT { CURR1 = 0, CURR2 = 1, CURR3 = 2, CURR4 = 3, CURR5 = 4, CURR6 = 5 };
+
+// states for active timer used in the main loop
+enum ACTIVE_TIMER { VOLT1_TIMER = 0, VOLT2_TIMER, BRANCH_TIMER };
+
+// struct to hold samples gathered using timerISR() routines
 typedef struct {
 	volatile bool free;
 	volatile size_t  index;
 	double v_data[SAMPLE_BUF_SIZE];
 	double i_data[SAMPLE_BUF_SIZE];
-	unsigned long t_data[SAMPLE_BUF_SIZE];
+	// unsigned long t_data[SAMPLE_BUF_SIZE];
 } SampleBuf;
 
 //NOTE: 20504 free memory
 // Object Instatiation:
-IntervalTimer timer;
-SampleBuf samples;
-// SampleBuf samples_1[2]; //NOTE: Don't seem to occupy freeMemory()?
-circuitVal circuit1(0.02, 1500); //NOTE: occupy 1.192 kB of mem
+IntervalTimer volt1_timer;
+IntervalTimer volt2_timer;
+IntervalTimer branch_timer;
+SampleBuf samples[NUM_CIRCUITS];
+circuitVal circuit[NUM_CIRCUITS]; //circuit1(0.02, 1500); //NOTE: occupy 1.192 kB of mem
 ads6838 MY_ADC;
-// NOTE: set to differentiate between loads that
-// have at least 40 mA difference over time periods of 1.
-// lowering current threshold reduces number of reads, but
-// increases the variability between readings
-
 State state = STATE_INIT;
-const int waveSize = SAMPLE_BUF_SIZE;
+ACTIVE_CIRCUIT circuit_state = CURR1;
+uint8_t isrBranchCurrent;
+uint8_t isrBranchVoltage;
+ACTIVE_TIMER timer_state = VOLT1_TIMER;
 
-// FIXME: Need to reduce space overhead of waveform classes, make
-// peak vect uint8_t, and remove the time vector
+const int waveSize = SAMPLE_BUF_SIZE;
 waveform vWave(waveSize, FILTER_KERNAL_SIZE); //NOTE: Occupies 6.28 kB of mem
-waveform vWave2(waveSize, FILTER_KERNAL_SIZE);
 waveform iWave(waveSize, FILTER_KERNAL_SIZE);
-powerWave pWave(waveSize, SAMPLE_RATE); //NOTE: Occupies 128 kB of mem
+powerWave pWave_VOLT1(waveSize, SAMPLE_RATE_VOLT1); //NOTE: Occupies 128 kB of mem
+powerWave pWave_VOLT2(waveSize, SAMPLE_RATE_VOLT2);
+powerWave pWave_BRANCH(waveSize, SAMPLE_RATE_BRANCH);
 
 // Helper Functions
 void dataHandler(const char *event, const char *data)
 {
-  if(strcmp("setRelay1",event)==0)
-  {
-    relayHandler(relay1, data);
-  }
+  // if(strcmp("setRelay1",event)==0)
+  // {
+  //   relayHandler(relay1, data);
+  // }
   if(strcmp("sendEvent",event)==0)
   {
     sendEvent();
   }
 }
 
-void relayHandler(int relayPin, const char *data)
-{
-  if(strcmp(data, "OFF")==0) digitalWrite(relayPin, LOW);
-  if(strcmp(data, "ON")==0) digitalWrite(relayPin, HIGH);
-}
+// void relayHandler(int relayPin, const char *data)
+// {
+//   if(strcmp(data, "OFF")==0) digitalWrite(relayPin, LOW);
+//   if(strcmp(data, "ON")==0) digitalWrite(relayPin, HIGH);
+// }
 
-bool pushDataFlag = false;
+bool pushDataFlag[NUM_CIRCUITS] = {false, false, false, false, false, false};
 void sendEvent()
 {
-  pushDataFlag = true;
+  pushDataFlag[circuit_state] = true;
 }
 
-
-const double currentThreshold_diff = 0.05;
 unsigned long sendInterval;
 const unsigned long sendIntervalDelta = 20*3600; // 20 minutes
 
@@ -175,7 +205,7 @@ double i_ratio = (5 * 100000) / (4095 * 10);
 void transferBuff(SampleBuf& buff, bool& outFlag, waveform& vWave, waveform& iWave){
   for(size_t i = 0; i < SAMPLE_BUF_SIZE; i++)
   {
-		unsigned long time_val = buff.t_data[i];
+		// unsigned long time_val = buff.t_data[i];
 		//all values now in mV
 
 		//values without ratios above are in mV detected by microcontroller
@@ -193,47 +223,29 @@ void transferBuff(SampleBuf& buff, bool& outFlag, waveform& vWave, waveform& iWa
 }
 
 
-void setup() {
-	// Put initialization like pinMode and begin functions here.
-  Serial.begin(9600);
-  pinMode(relay1, OUTPUT);
-  digitalWrite(relay1, HIGH);
-	pinMode(D7, OUTPUT); //FIXME
-  Particle.subscribe("setRelay", dataHandler);
-  Particle.subscribe("sendEvent", dataHandler);
-  // setADCSampleTime(ADC_SampleTime_3Cycles);
-	pWave.addComponents(vWave, iWave);
-  sendInterval = millis();
-  MY_ADC.init(20); //Initialize ADS6838SR w/ 20 MHz clk
-	delay(1000); //FIXME
-
-}
-
-bool outFlag = false;
-void loop() {
-  switch(state)
+void timerLoop(powerWave& pWave, ACTIVE_CIRCUIT& circuit_state, bool& outFlag,
+	circuitVal& circuit, ACTIVE_TIMER& timer_state){
+	switch(state)
 	{
 		case STATE_INIT:
   		// Reset the buffers
       // TODO: Check the oferall runtime without any outputs using the follwing
       // Serial.println(micros());
-      samples.free = true;
-      samples.index = 0;
+      samples[circuit_state].free = true;
+      samples[circuit_state].index = 0;
 			outFlag = false;
 			// We want to sample at 16 KHz
 			// 16000 samples/sec = 62.5 microseconds
 			// The minimum timer period is about 10 micrseconds
-			timer.begin(timerISR, 1000000 >> SAMPLE_RATE_SHIFT, uSec); //122 uSec sample time
 			state = STATE_COLLECT;
 			break;
 		case STATE_COLLECT:
-      if(!(samples.free)) {
+      if(!(samples[circuit_state].free)) {
         state = STATE_TRANSFER;
       }
 			break;
 		case STATE_TRANSFER:
-			timer.end();
-      transferBuff(samples, outFlag, vWave, iWave);
+      transferBuff(samples[circuit_state], outFlag, vWave, iWave);
 			state = STATE_PROCESS;
 			if(outFlag) state = STATE_PROCESS;
 		break;
@@ -246,8 +258,8 @@ void loop() {
 			vWave.getRMS();
 			pWave.calcP();
 			pWave.computeFFT();
-      logCircuit(iWave, vWave, pWave, circuit1);
-      pushData(circuit1, pushDataFlag);
+      logCircuit(iWave, vWave, pWave, circuit);
+      pushData(circuit, pushDataFlag[circuit_state]);
 			pWave.clearWave();
 			vWave.resetWave();
 			iWave.resetWave();
@@ -256,23 +268,104 @@ void loop() {
 			break;
 		default:
 			//default to dump buffers and start over
-			timer.end();
+			volt1_timer.begin(timerISR_VOLT1, 1000000 >> SAMPLE_RATE_SHIFT_VOLT1, uSec); //122 uSec sample time
+			volt2_timer.begin(timerISR_VOLT2, 1000000 >> SAMPLE_RATE_SHIFT_VOLT2, uSec); //122 uSec sample time
+			branch_timer.begin(timerISR_BRANCH, 1000000 >> SAMPLE_RATE_SHIFT_BRANCH, uSec); //122 uSec sample time
 			state = STATE_INIT;
 			break;
 	}
+}
 
+void setup() {
+	// Put initialization like pinMode and begin functions here.
+  Serial.begin(9600);
+  pinMode(LED1, OUTPUT);
+	pinMode(LED2, OUTPUT);
+	pinMode(LED3, OUTPUT);
+	pinMode(LED4, OUTPUT);
+
+	digitalWrite(LED1, HIGH);
+  Particle.subscribe("setRelay", dataHandler);
+	digitalWrite(LED2, HIGH);
+  Particle.subscribe("sendEvent", dataHandler);
+	digitalWrite(LED3, HIGH);
+
+	pWave_VOLT1.addComponents(vWave, iWave);
+	pWave_VOLT2.addComponents(vWave, iWave);
+	pWave_BRANCH.addComponents(vWave, iWave);
+	digitalWrite(LED4, HIGH);
+
+	sendInterval = millis();
+	delay(250);
+	digitalWrite(LED1, LOW);
+	digitalWrite(LED2, LOW);
+	digitalWrite(LED3, LOW);
+	digitalWrite(LED4, HIGH);
+	volt1_timer.begin(timerISR_VOLT1, 1000000 >> SAMPLE_RATE_SHIFT_VOLT1, uSec); //122 uSec sample time
+	volt2_timer.begin(timerISR_VOLT2, 1000000 >> SAMPLE_RATE_SHIFT_VOLT2, uSec); //122 uSec sample time
+	branch_timer.begin(timerISR_BRANCH, 1000000 >> SAMPLE_RATE_SHIFT_BRANCH, uSec); //122 uSec sample time
+	delay(250);
 
 }
 
-void timerISR() {
+bool outFlag[NUM_CIRCUITS] = {false, false, false, false, false};
+// ACTIVE_CIRCUIT circuit_state = CURR1;
+// uint8_t isrBranchCurrent;
+// uint8_t isrBranchVoltage;
+void loop() {
+	timerLoop(pWave_VOLT1, CURR1, outFlag[CURR1], circuit[CURR1]);
+	timerLoop(pWave_VOLT2, CURR2, outFlag[CURR2], circuit[CURR2]);
+	timerLoop(pWave_BRANCH, circuit_state, outFlag[circuit_state], circuit[circuit_state]);
+}
+
+
+// this timerISR is set to monitor the VOLT2 main
+void timerISR_VOLT1() {
 	// This is an interrupt service routine. Don't put any heavy calculations here
 	// or call anything that's not interrupt-safe, such as:
 	// Serial, String, any memory allocation (new, malloc, etc.), Particle.publish and other Particle methods, and more.
-  SampleBuf *sb = &samples;
+  SampleBuf *sb = &samples[CURR1];
   if(sb->free){
-    sb->i_data[sb->index] = MY_ADC.read1(1);
-		sb->v_data[sb->index] = 0; //(double) (analogRead(vpin1));
-		sb->t_data[sb->index++] = micros();
+    sb->i_data[sb->index] = MY_ADC.read1(ADS8638_CURR1);
+		sb->v_data[sb->index] = MY_ADC.read1(ADS8638_VOLT1);
+		// sb->t_data[sb->index] = micros();
+		sb->index++;
+  }
+  if (sb->index >= SAMPLE_BUF_SIZE) {
+    // Buffer has been filled. Let it be sent via TCP.
+    sb->free = false;
+    sb->index = 0;
+  }
+}
+
+void timerISR_VOLT2() {
+	// This is an interrupt service routine. Don't put any heavy calculations here
+	// or call anything that's not interrupt-safe, such as:
+	// Serial, String, any memory allocation (new, malloc, etc.), Particle.publish and other Particle methods, and more.
+  SampleBuf *sb = &samples[CURR2];
+  if(sb->free){
+    sb->i_data[sb->index] = MY_ADC.read1(ADS8638_CURR2);
+		sb->v_data[sb->index] = MY_ADC.read1(ADS8638_VOLT2);
+		// sb->t_data[sb->index] = micros();
+		sb->index++;
+  }
+  if (sb->index >= SAMPLE_BUF_SIZE) {
+    // Buffer has been filled. Let it be sent via TCP.
+    sb->free = false;
+    sb->index = 0;
+  }
+}
+
+void timerISR_BRANCH() {
+	// This is an interrupt service routine. Don't put any heavy calculations here
+	// or call anything that's not interrupt-safe, such as:
+	// Serial, String, any memory allocation (new, malloc, etc.), Particle.publish and other Particle methods, and more.
+  SampleBuf *sb = &samples[circuit_state];
+  if(sb->free){
+    sb->i_data[sb->index] = MY_ADC.read1(isrBranchCurrent);
+		sb->v_data[sb->index] = MY_ADC.read1(isrBranchVoltage);
+		// sb->t_data[sb->index] = micros();
+		sb->index++;
   }
   if (sb->index >= SAMPLE_BUF_SIZE) {
     // Buffer has been filled. Let it be sent via TCP.
