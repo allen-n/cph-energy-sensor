@@ -2,7 +2,7 @@
 #define __ADS6838_INCLUDED__
 
 #include "Particle.h"
-#include <bitset>
+// #include <bitset> //NOTE: For troubleshooting
 
 #define ADS8638_REG_MANUAL         0x04
 #define ADS8638_REG_AUTO           0x05
@@ -43,8 +43,8 @@ class ads6838
 {
 public:
 	ads6838(); //passing initialized SPI object, desired clk
-	void get8_DMA(uint8_t* rx_dest);
-	void read8_DMA(uint8_t &flag);
+	// void get8_DMA(uint8_t* rx_dest);
+	// void read8_DMA(uint8_t &flag);
 	void read8(uint16_t* out, uint8_t addr = ADS8638_REG_MANUAL, uint8_t range = ADS8638_RANGE_5V);
 	void init(uint8_t clk_speed = 20);
 	void writeCmd(uint8_t addr, uint8_t cmd);
@@ -69,16 +69,17 @@ protected:
 	const uint8_t _SDIN = A5;
 	uint8_t _range;
 
-	// buffers for 128 bit SPI transfer, i.e. 16 bytes
-	static uint8_t rx_buffer[16];
-	static uint8_t tx_buffer[16];
-	static uint8_t tx_buffer_read8[16]; //reference for read8 SPI command
-	static uint8_t select_state;
-	static uint8_t transfer_state;
-
-	static void trasnferHandler();
-	void set_tx();
-	void transfer128(uint16_t &flag);
+	//NOTE: For 128 bit asynchronous transfer
+	// // buffers for 128 bit SPI transfer, i.e. 16 bytes
+	// static uint8_t rx_buffer[16];
+	// static uint8_t tx_buffer[16];
+	// static uint8_t tx_buffer_read8[16]; //reference for read8 SPI command
+	// static uint8_t select_state;
+	// static uint8_t transfer_state;
+	//
+	// static void trasnferHandler();
+	// void set_tx();
+	// void transfer128(uint16_t &flag);
 };
 
 #endif

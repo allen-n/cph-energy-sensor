@@ -1,27 +1,28 @@
 #include "ADS6838SR.h"
 
-//define static member variables definitions
-uint8_t ads6838::transfer_state;
-uint8_t ads6838::select_state;
-uint8_t ads6838::tx_buffer_read8[16];
+// //define static member variables definitions
+// uint8_t ads6838::transfer_state;
+// uint8_t ads6838::select_state;
+// uint8_t ads6838::tx_buffer_read8[16];
 
-/**
-	Converts from uint8_t to bitset
-	@param byte ;a byte in uint8_t format
-	@return a byte in std::bitset<8> format
-**/
-std::bitset<8> to_bits(uint8_t byte)
-{
-    return std::bitset<8>(byte);
-}
-
-std::bitset<16> to_bits(uint8_t msb, uint8_t lsb)
-{
-    uint16_t byte = msb;
-    byte =  (byte << 8);
-    byte = byte | lsb;
-    return std::bitset<16>(byte);
-}
+// // NOTE: For error logging and seeing actual bit values
+// /**
+// 	Converts from uint8_t to bitset
+// 	@param byte ;a byte in uint8_t format
+// 	@return a byte in std::bitset<8> format
+// **/
+// std::bitset<8> to_bits(uint8_t byte)
+// {
+//     return std::bitset<8>(byte);
+// }
+//
+// std::bitset<16> to_bits(uint8_t msb, uint8_t lsb)
+// {
+//     uint16_t byte = msb;
+//     byte =  (byte << 8);
+//     byte = byte | lsb;
+//     return std::bitset<16>(byte);
+// }
 
 /**
 	Initialize ads6838 internal class variables
@@ -34,24 +35,24 @@ std::bitset<16> to_bits(uint8_t msb, uint8_t lsb)
 	@return null
 **/
 ads6838::ads6838(){
-	uint8_t commandByte;
-	uint8_t k = 0;
+	// uint8_t commandByte;
+	// uint8_t k = 0;
   this->_range = ADS8638_RANGE_2_5V;
-	for (uint8_t i = 0; i < sizeof(this->tx_buffer_read8); i++) {
-		if(i%2 == 0) {
-			commandByte = (ADS8638_REG_MANUAL << 1) & 0xfe; //[15:9] reg addr, [8] read/write
-		} else {
-			// [7] always 0, [6:4] channel sel, [3:1] range sel, [0] temp sel
-			commandByte = k; k++;
-			commandByte = commandByte << 4;
-			commandByte = commandByte & 0x70;
-			uint8_t range = (ADS8638_RANGE_2_5V << 1) & 0x0e;
-			commandByte = commandByte | range;
-		}
-		this->tx_buffer_read8[i] = commandByte;
-	}
-	this->transfer_state = 0x00;
-	this->select_state = 0x00;
+	// for (uint8_t i = 0; i < sizeof(this->tx_buffer_read8); i++) {
+	// 	if(i%2 == 0) {
+	// 		commandByte = (ADS8638_REG_MANUAL << 1) & 0xfe; //[15:9] reg addr, [8] read/write
+	// 	} else {
+	// 		// [7] always 0, [6:4] channel sel, [3:1] range sel, [0] temp sel
+	// 		commandByte = k; k++;
+	// 		commandByte = commandByte << 4;
+	// 		commandByte = commandByte & 0x70;
+	// 		uint8_t range = (ADS8638_RANGE_2_5V << 1) & 0x0e;
+	// 		commandByte = commandByte | range;
+	// 	}
+	// 	this->tx_buffer_read8[i] = commandByte;
+	// }
+	// this->transfer_state = 0x00;
+	// this->select_state = 0x00;
 }
 
 /**
@@ -109,35 +110,35 @@ void ads6838::init(uint8_t clk_speed){
   SPI.transfer(0);
 }
 
-/**
-	Reads all 8 channels of ads6838 asynchronously and sets the passed flag
-	variable when complete
-	@param uint8_t flag, set to 1 when read is complete
-	@return null
-**/
-void ads6838::read8_DMA(uint8_t &flag){
-	std::memcpy(this->tx_buffer, this->tx_buffer_read8, sizeof(this->tx_buffer_read8));
-	transfer_state = 0x00;
-	SPI.transfer(tx_buffer, rx_buffer, sizeof(rx_buffer), ads6838::trasnferHandler);
-	flag = transfer_state;
-}
+// /**
+// 	Reads all 8 channels of ads6838 asynchronously and sets the passed flag
+// 	variable when complete
+// 	@param uint8_t flag, set to 1 when read is complete
+// 	@return null
+// **/
+// void ads6838::read8_DMA(uint8_t &flag){
+// 	std::memcpy(this->tx_buffer, this->tx_buffer_read8, sizeof(this->tx_buffer_read8));
+// 	transfer_state = 0x00;
+// 	SPI.transfer(tx_buffer, rx_buffer, sizeof(rx_buffer), ads6838::trasnferHandler);
+// 	flag = transfer_state;
+// }
+//
+//
+// void ads6838::trasnferHandler(){
+// 	transfer_state = 1;
+// }
 
 
-void ads6838::trasnferHandler(){
-	transfer_state = 1;
-}
-
-
-/**
-	copies result of read8_DMA into passed rx_dest array
-	@param uint8_t* rx_dest, must have equal size to ads6838->rx_buffer
-	@return null
-**/
-void ads6838::get8_DMA(uint8_t* rx_dest){
-	this->transfer_state = 0;
-	// TODO: Add postprocessing to turn get the actual values out of the rx buffer
-	std::memcpy(rx_dest, this->rx_buffer, sizeof(this->rx_buffer));
-}
+// /**
+// 	copies result of read8_DMA into passed rx_dest array
+// 	@param uint8_t* rx_dest, must have equal size to ads6838->rx_buffer
+// 	@return null
+// **/
+// void ads6838::get8_DMA(uint8_t* rx_dest){
+// 	this->transfer_state = 0;
+// 	// TODO: Add postprocessing to turn get the actual values out of the rx buffer
+// 	std::memcpy(rx_dest, this->rx_buffer, sizeof(this->rx_buffer));
+// }
 
 void ads6838::selectChannel(uint8_t channel){
   digitalWrite(this->_SS, LOW);
@@ -153,7 +154,7 @@ uint16_t ads6838::read1(uint8_t channel, uint8_t range){
 	uint8_t commandByte;
   uint8_t result[2];
 	commandByte = (channel << 4) | (range << 1);
-	
+
   digitalWrite(this->_SS, LOW);
   // delayMicroseconds(1);
 	SPI.transfer(ADS8638_REG_MANUAL << 1); //manual register addressing command

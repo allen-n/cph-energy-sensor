@@ -11,12 +11,13 @@
 class waveform
 {
 public:
-  void addData(unsigned long currentTime, double data);
+  // void addData(unsigned long currentTime, double data);
+  void addData(double data);
   double getRMS(double offset = 0);//get RMS value for waveform
-  double getFrequency();//get frequency
+  // double getFrequency();//get frequency
   bool dataFull();
   void resetWave();
-  unsigned long printTime(int i);
+  // unsigned long printTime(int i);
   double printData(int i);
   unsigned long printPeaks(int i);
   waveform(int numPts, size_t filtKernalSize = 11);
@@ -39,7 +40,7 @@ protected:
   double _amplitude = NULL;
   double _frequency = NULL;
   double _average = NULL;
-  std::vector<unsigned long> _timeStamp;
+  // std::vector<unsigned long> _timeStamp; //NOTE: occupies 2kB of mem
   /*
   src: http://www.drdobbs.com/cpp/a-simple-and-efficient-fft-
   implementatio/199500857?pgno=1

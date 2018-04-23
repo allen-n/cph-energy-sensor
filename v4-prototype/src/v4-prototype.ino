@@ -52,6 +52,7 @@
 #include "SparkIntervalTimer.h"
 #include "ADS6838SR.h"
 
+
 const size_t FILTER_KERNAL_SIZE = 2; //must be even
 const size_t SAMPLE_BUF_SIZE =  512 + FILTER_KERNAL_SIZE; //these rates are doubled from base
 const long SAMPLE_RATE = 2048*4; //4096*2;
@@ -71,10 +72,12 @@ typedef struct {
 	unsigned long t_data[SAMPLE_BUF_SIZE];
 } SampleBuf;
 
+//NOTE: 20504 free memory
 // Object Instatiation:
 IntervalTimer timer;
 SampleBuf samples;
-circuitVal circuit1(0.02, 1500);
+// SampleBuf samples_1[2]; //NOTE: Don't seem to occupy freeMemory()?
+circuitVal circuit1(0.02, 1500); //NOTE: occupy 1.192 kB of mem
 ads6838 MY_ADC;
 // NOTE: set to differentiate between loads that
 // have at least 40 mA difference over time periods of 1.
@@ -84,9 +87,12 @@ ads6838 MY_ADC;
 State state = STATE_INIT;
 const int waveSize = SAMPLE_BUF_SIZE;
 
-waveform vWave(waveSize, FILTER_KERNAL_SIZE);
+// FIXME: Need to reduce space overhead of waveform classes, make
+// peak vect uint8_t, and remove the time vector
+waveform vWave(waveSize, FILTER_KERNAL_SIZE); //NOTE: Occupies 6.28 kB of mem
+waveform vWave2(waveSize, FILTER_KERNAL_SIZE);
 waveform iWave(waveSize, FILTER_KERNAL_SIZE);
-powerWave pWave(waveSize, SAMPLE_RATE);
+powerWave pWave(waveSize, SAMPLE_RATE); //NOTE: Occupies 128 kB of mem
 
 // Helper Functions
 void dataHandler(const char *event, const char *data)
@@ -148,7 +154,8 @@ void logCircuit(waveform& iWave, waveform& vWave, powerWave& pWave, circuitVal& 
   }
   c1.addData(iRMS, vRMS, pf, apparentP, realP, reactiveP, harmonics);
   String out = c1.get_data_string();
-  Serial.println(out); //NOTE: Continuous Serial Debug Option, uncomment
+  // Serial.println(out); //NOTE: Continuous Serial Debug Option, uncomment
+	Serial.println(System.freeMemory());Serial.print(" , "); //FIXME
   if(c1.data_ready()){
     digitalWrite(D7, HIGH);
     if(SERIAL_DEBUG){
@@ -174,8 +181,8 @@ void transferBuff(SampleBuf& buff, bool& outFlag, waveform& vWave, waveform& iWa
 		//values without ratios above are in mV detected by microcontroller
 		double i_val = i_ratio * buff.i_data[i];
 		double v_val = v_ratio * buff.v_data[i];
-		iWave.addData(time_val, floorf(i_val)/100);
-		vWave.addData(time_val, floorf(v_val)/100);
+		iWave.addData(floorf(i_val)/100);
+		vWave.addData(floorf(v_val)/100);
     // FIXME:
     // Serial.print(i);Serial.print(" , ");Serial.print(time_val);Serial.print(" , ");
     // Serial.println(buff.i_data[i]*1000/4095.0);
@@ -194,10 +201,10 @@ void setup() {
 	pinMode(D7, OUTPUT); //FIXME
   Particle.subscribe("setRelay", dataHandler);
   Particle.subscribe("sendEvent", dataHandler);
-  setADCSampleTime(ADC_SampleTime_3Cycles);
+  // setADCSampleTime(ADC_SampleTime_3Cycles);
 	pWave.addComponents(vWave, iWave);
   sendInterval = millis();
-  MY_ADC.init(20);
+  MY_ADC.init(20); //Initialize ADS6838SR w/ 20 MHz clk
 	delay(1000); //FIXME
 
 }
