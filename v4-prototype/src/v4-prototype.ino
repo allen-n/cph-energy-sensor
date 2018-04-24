@@ -209,15 +209,18 @@ void timerLoop(bool is_branch, powerWave& pWave, ACTIVE_CIRCUIT& circuit_state, 
       samples[circuit_state]->free = true;
       samples[circuit_state]->index = 0;
 			outFlag = false;
+			Serial.println("INIT");Serial.println(System.freeMemory());
 			state = STATE_COLLECT;
 			break;
 		case STATE_COLLECT:
       if(!(samples[circuit_state]->free)) {
         state = STATE_TRANSFER;
       }
+			Serial.println("COLLECT");Serial.println(System.freeMemory());
 			break;
 		case STATE_TRANSFER:
       transferBuff(*(samples[circuit_state]), outFlag, vWave, iWave);
+			Serial.println("TRANSFER");Serial.println(System.freeMemory());
 			state = STATE_PROCESS;
 			if(outFlag) state = STATE_PROCESS;
 		break;
@@ -237,6 +240,7 @@ void timerLoop(bool is_branch, powerWave& pWave, ACTIVE_CIRCUIT& circuit_state, 
 			iWave.resetWave();
 			if(SERIAL_DEBUG) delay(15);
 			state = STATE_INIT;
+			Serial.println("PROCESS");Serial.println(System.freeMemory());
 			break;
 		default:
 			//default to dump buffers and start over
@@ -275,9 +279,12 @@ void setup() {
 	digitalWrite(LED2, LOW);
 	digitalWrite(LED3, LOW);
 	digitalWrite(LED4, HIGH);
+
+	// allocate the timer for the active circuit being measured
+	// i.e. main1, main2, branch1, main1, main2, branch2
 	volt1_timer.begin(timerISR_VOLT1, 1000000 >> SAMPLE_RATE_SHIFT_VOLT1, uSec); //122 uSec sample time
-	volt2_timer.begin(timerISR_VOLT2, 1000000 >> SAMPLE_RATE_SHIFT_VOLT2, uSec); //122 uSec sample time
-	branch_timer.begin(timerISR_BRANCH, 1000000 >> SAMPLE_RATE_SHIFT_BRANCH, uSec); //122 uSec sample time
+	// volt2_timer.begin(timerISR_VOLT2, 1000000 >> SAMPLE_RATE_SHIFT_VOLT2, uSec); //122 uSec sample time
+	// branch_timer.begin(timerISR_BRANCH, 1000000 >> SAMPLE_RATE_SHIFT_BRANCH, uSec); //122 uSec sample time
 	// delay(250);
 
 }
