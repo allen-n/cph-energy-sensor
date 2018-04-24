@@ -46,6 +46,9 @@ const bool SERIAL_DEBUG = true;
 // # of circuits being monitored, i.e. # ADC Channels - # mains voltages
 const uint8_t NUM_CIRCUITS = 6;
 
+// # of branch circuits being monitored, i.e. NUM_CIRCUITS - # mains currents
+const int NUM_BRANCH_CIRCUITS = NUM_CIRCUITS - 2;
+
 // states for data processing in main loop()
 enum State { STATE_INIT = 0, STATE_COLLECT, STATE_TRANSFER, STATE_PROCESS };
 
