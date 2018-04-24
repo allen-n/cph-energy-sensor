@@ -12,14 +12,14 @@
 #include "ADS6838SR.h"
 
 // Defining int constants cooresponding to ADS6838SR channels
-#define ADS8638_VOLT1 0x0
-#define ADS8638_CURR1 0x1 //100A Branch
-#define ADS8638_CURR2 0x2 //100A Branch
-#define ADS8638_CURR3 0x3
-#define ADS8638_CURR4 0x4
-#define ADS8638_CURR5 0x5
-#define ADS8638_CURR6 0x6
-#define ADS8638_VOLT2 0x7
+const uint8_t ADS8638_VOLT1 = 0x0;
+const uint8_t ADS8638_CURR1 = 0x1; //100A Branch
+const uint8_t ADS8638_CURR2 = 0x2; //100A Branch
+const uint8_t ADS8638_CURR3 = 0x3;
+const uint8_t ADS8638_CURR4 = 0x4;
+const uint8_t ADS8638_CURR5 = 0x5;
+const uint8_t ADS8638_CURR6 = 0x6;
+const uint8_t ADS8638_VOLT2 = 0x7;
 
 // Setting sample rates for branch circuits and 2 mains
 const size_t FILTER_KERNAL_SIZE = 2; //must be even
@@ -34,11 +34,12 @@ const int SAMPLE_RATE_SHIFT_VOLT2 = log(SAMPLE_RATE_VOLT2)/log(2);
 const long SAMPLE_RATE_BRANCH = 8192;
 const int SAMPLE_RATE_SHIFT_BRANCH = log(SAMPLE_RATE_BRANCH)/log(2);
 
-// defining LED Constants //FIXME? don't these need to be defined?
-// const int LED1 = D0;
-// const int LED2 = D1;
-// const int LED3 = D2;
-// const int LED4 = D3;
+// defining LED Constants
+#define LED1 D0
+#define LED2 D1
+#define LED3 D3
+#define LED4 D4
+
 
 // Configuring Serial output (SERIAL_DEBUG) or webhook output (!SERIAL_DEBUG)
 const bool SERIAL_DEBUG = true;
@@ -72,7 +73,11 @@ typedef struct {
 IntervalTimer volt1_timer;
 IntervalTimer volt2_timer;
 IntervalTimer branch_timer;
-SampleBuf samples[NUM_CIRCUITS];
+SampleBuf samples_curr1;
+SampleBuf samples_curr2;
+SampleBuf samples_branch;
+SampleBuf* samples[NUM_CIRCUITS] = {&samples_curr1, &samples_curr2,
+	&samples_branch, &samples_branch, &samples_branch, &samples_branch};
 circuitVal circuit[NUM_CIRCUITS]; //circuit1(0.02, 1500); //NOTE: occupy 1.192 kB of mem
 ads6838 MY_ADC;
 State state = STATE_INIT;
@@ -83,10 +88,11 @@ uint8_t isrBranchCurrent;
 uint8_t isrBranchVoltage;
 
 const int waveSize = SAMPLE_BUF_SIZE;
+// TODO: Move to address memory allocation problem
 waveform vWave(waveSize, FILTER_KERNAL_SIZE); //NOTE: Occupies 6.28 kB of mem
 waveform iWave(waveSize, FILTER_KERNAL_SIZE);
 powerWave pWave_VOLT1(waveSize, SAMPLE_RATE_VOLT1); //NOTE: Occupies 128 kB of mem
-powerWave pWave_VOLT2(waveSize, SAMPLE_RATE_VOLT2);
+// powerWave pWave_VOLT2(waveSize, SAMPLE_RATE_VOLT2);
 powerWave pWave_BRANCH(waveSize, SAMPLE_RATE_BRANCH);
 
 // Helper Functions
@@ -200,18 +206,18 @@ void timerLoop(bool is_branch, powerWave& pWave, ACTIVE_CIRCUIT& circuit_state, 
 				// 	to autmatically determine whether a current is on the correct branch
 				// 	voltage
 			}
-      samples[circuit_state].free = true;
-      samples[circuit_state].index = 0;
+      samples[circuit_state]->free = true;
+      samples[circuit_state]->index = 0;
 			outFlag = false;
 			state = STATE_COLLECT;
 			break;
 		case STATE_COLLECT:
-      if(!(samples[circuit_state].free)) {
+      if(!(samples[circuit_state]->free)) {
         state = STATE_TRANSFER;
       }
 			break;
 		case STATE_TRANSFER:
-      transferBuff(samples[circuit_state], outFlag, vWave, iWave);
+      transferBuff(*(samples[circuit_state]), outFlag, vWave, iWave);
 			state = STATE_PROCESS;
 			if(outFlag) state = STATE_PROCESS;
 		break;
@@ -234,9 +240,9 @@ void timerLoop(bool is_branch, powerWave& pWave, ACTIVE_CIRCUIT& circuit_state, 
 			break;
 		default:
 			//default to dump buffers and start over
-			volt1_timer.begin(timerISR_VOLT1, 1000000 >> SAMPLE_RATE_SHIFT_VOLT1, uSec); //122 uSec sample time
-			volt2_timer.begin(timerISR_VOLT2, 1000000 >> SAMPLE_RATE_SHIFT_VOLT2, uSec); //122 uSec sample time
-			branch_timer.begin(timerISR_BRANCH, 1000000 >> SAMPLE_RATE_SHIFT_BRANCH, uSec); //122 uSec sample time
+			volt1_timer.end();
+			volt2_timer.end();
+			branch_timer.end();
 			state = STATE_INIT;
 			break;
 	}
@@ -255,14 +261,16 @@ void setup() {
 	digitalWrite(LED2, HIGH);
   Particle.subscribe("sendEvent", dataHandler);
 	digitalWrite(LED3, HIGH);
+	delay(250);
 
+	// TODO: Move to address memory allocation problem
 	pWave_VOLT1.addComponents(vWave, iWave);
-	pWave_VOLT2.addComponents(vWave, iWave);
-	pWave_BRANCH.addComponents(vWave, iWave);
+	// pWave_VOLT2.addComponents(vWave, iWave);
+	// pWave_BRANCH.addComponents(vWave, iWave);
 	digitalWrite(LED4, HIGH);
 
 	sendInterval = millis();
-	delay(250);
+	delay(1000);
 	digitalWrite(LED1, LOW);
 	digitalWrite(LED2, LOW);
 	digitalWrite(LED3, LOW);
@@ -270,7 +278,7 @@ void setup() {
 	volt1_timer.begin(timerISR_VOLT1, 1000000 >> SAMPLE_RATE_SHIFT_VOLT1, uSec); //122 uSec sample time
 	volt2_timer.begin(timerISR_VOLT2, 1000000 >> SAMPLE_RATE_SHIFT_VOLT2, uSec); //122 uSec sample time
 	branch_timer.begin(timerISR_BRANCH, 1000000 >> SAMPLE_RATE_SHIFT_BRANCH, uSec); //122 uSec sample time
-	delay(250);
+	// delay(250);
 
 }
 
@@ -279,18 +287,19 @@ bool outFlag[NUM_CIRCUITS] = {false, false, false, false, false};
 // uint8_t isrBranchCurrent;
 // uint8_t isrBranchVoltage;
 void loop() {
+	Serial.println(System.freeMemory());
 	timerLoop(false, pWave_VOLT1, circuit_state_curr1, outFlag[circuit_state_curr1], circuit[circuit_state_curr1]);
-	timerLoop(false, pWave_VOLT2, circuit_state_curr2, outFlag[circuit_state_curr2], circuit[circuit_state_curr2]);
-	timerLoop(true, pWave_BRANCH, circuit_state, outFlag[circuit_state], circuit[circuit_state]);
+	// timerLoop(false, pWave_VOLT2, circuit_state_curr2, outFlag[circuit_state_curr2], circuit[circuit_state_curr2]);
+	// timerLoop(true, pWave_BRANCH, circuit_state, outFlag[circuit_state], circuit[circuit_state]);
 }
 
-
+// SampleBuf* curr1_samplebuff = &samples;
 // this timerISR is set to monitor the VOLT2 main
-void timerISR_VOLT1() {
+void timerISR_VOLT1(void) {
 	// This is an interrupt service routine. Don't put any heavy calculations here
 	// or call anything that's not interrupt-safe, such as:
 	// Serial, String, any memory allocation (new, malloc, etc.), Particle.publish and other Particle methods, and more.
-  SampleBuf *sb = &samples[CURR1];
+  SampleBuf *sb = &samples_curr1;
   if(sb->free){
     sb->i_data[sb->index] = MY_ADC.read1(ADS8638_CURR1);
 		sb->v_data[sb->index] = MY_ADC.read1(ADS8638_VOLT1);
@@ -304,11 +313,11 @@ void timerISR_VOLT1() {
   }
 }
 
-void timerISR_VOLT2() {
+void timerISR_VOLT2(void) {
 	// This is an interrupt service routine. Don't put any heavy calculations here
 	// or call anything that's not interrupt-safe, such as:
 	// Serial, String, any memory allocation (new, malloc, etc.), Particle.publish and other Particle methods, and more.
-  SampleBuf *sb = &samples[CURR2];
+  SampleBuf *sb = &samples_curr2;
   if(sb->free){
     sb->i_data[sb->index] = MY_ADC.read1(ADS8638_CURR2);
 		sb->v_data[sb->index] = MY_ADC.read1(ADS8638_VOLT2);
@@ -322,11 +331,11 @@ void timerISR_VOLT2() {
   }
 }
 
-void timerISR_BRANCH() {
+void timerISR_BRANCH(void) {
 	// This is an interrupt service routine. Don't put any heavy calculations here
 	// or call anything that's not interrupt-safe, such as:
 	// Serial, String, any memory allocation (new, malloc, etc.), Particle.publish and other Particle methods, and more.
-  SampleBuf *sb = &samples[circuit_state];
+  SampleBuf *sb = &samples_branch;
   if(sb->free){
     sb->i_data[sb->index] = MY_ADC.read1(isrBranchCurrent);
 		sb->v_data[sb->index] = MY_ADC.read1(isrBranchVoltage);
