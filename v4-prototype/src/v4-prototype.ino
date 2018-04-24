@@ -5,47 +5,6 @@
  * Date: 4.1.2018
  */
 
-// #include "ADS6838SR.h"
-// // FIXME:
-// // replace SparkIntervalTimer with:
-// // https://docs.particle.io/reference/firmware/electron/#class-member-callbacks
-//
-// ads6838 MY_ADC;
-// void setup(){
-//   MY_ADC.init(20);
-//   pinMode(D0, OUTPUT);
-//   // digitalWrite(D0, HIGH);
-//   pinMode(D1, OUTPUT);
-//   // digitalWrite(D1, HIGH);
-//   pinMode(D2, OUTPUT);
-//   // digitalWrite(D2, HIGH);
-//   pinMode(D3, OUTPUT);
-//   // digitalWrite(D3, HIGH);
-//   pinMode(D7, OUTPUT);
-//   // digitalWrite(D7, HIGH);
-//   delay(1000);
-// }
-//
-// unsigned long ct = micros();
-// const unsigned long dt = 2000;
-//
-// uint16_t out[8];
-// void loop(){
-//   digitalWrite(D7, LOW);
-//   // Serial.println(micros());
-//   if((micros() - ct) > dt){
-//     MY_ADC.read8(out, ADS8638_REG_MANUAL, ADS8638_RANGE_5V);
-//     Serial.println(out[1]);
-//     ct = micros();
-//   }
-//   // runs at 5.2 kHz with all 8 channels and 20 MHz clk
-//   // runs at 17.8 kHz for a single channel and 20MHz clk
-//   // Serial.println(micros());
-//   digitalWrite(D7, HIGH);
-//   // delay(100);
-// }
-
-
 #include "waveform.h"
 #include "powerWave.h"
 #include "circuitVal.h"
@@ -93,8 +52,8 @@ enum State { STATE_INIT = 0, STATE_COLLECT, STATE_TRANSFER, STATE_PROCESS };
 // states for active circuit being monitored
 enum ACTIVE_CIRCUIT { CURR1 = 0, CURR2 = 1, CURR3 = 2, CURR4 = 3, CURR5 = 4, CURR6 = 5 };
 
-// states for active timer used in the main loop
-enum ACTIVE_TIMER { VOLT1_TIMER = 0, VOLT2_TIMER, BRANCH_TIMER };
+// // states for active timer used in the main loop
+// enum ACTIVE_TIMER { VOLT1_TIMER = 0, VOLT2_TIMER, BRANCH_TIMER };
 
 // struct to hold samples gathered using timerISR() routines
 typedef struct {
@@ -114,10 +73,11 @@ SampleBuf samples[NUM_CIRCUITS];
 circuitVal circuit[NUM_CIRCUITS]; //circuit1(0.02, 1500); //NOTE: occupy 1.192 kB of mem
 ads6838 MY_ADC;
 State state = STATE_INIT;
-ACTIVE_CIRCUIT circuit_state = CURR1;
+ACTIVE_CIRCUIT circuit_state = CURR3;
+ACTIVE_CIRCUIT circuit_state_curr1 = CURR1;
+ACTIVE_CIRCUIT circuit_state_curr2 = CURR2;
 uint8_t isrBranchCurrent;
 uint8_t isrBranchVoltage;
-ACTIVE_TIMER timer_state = VOLT1_TIMER;
 
 const int waveSize = SAMPLE_BUF_SIZE;
 waveform vWave(waveSize, FILTER_KERNAL_SIZE); //NOTE: Occupies 6.28 kB of mem
@@ -223,20 +183,23 @@ void transferBuff(SampleBuf& buff, bool& outFlag, waveform& vWave, waveform& iWa
 }
 
 
-void timerLoop(powerWave& pWave, ACTIVE_CIRCUIT& circuit_state, bool& outFlag,
-	circuitVal& circuit, ACTIVE_TIMER& timer_state){
+void timerLoop(bool is_branch, powerWave& pWave, ACTIVE_CIRCUIT& circuit_state, bool& outFlag,
+	circuitVal& circuit){
 	switch(state)
 	{
 		case STATE_INIT:
-  		// Reset the buffers
-      // TODO: Check the oferall runtime without any outputs using the follwing
-      // Serial.println(micros());
+			if(is_branch){
+				// TODO: Change branch circuit values:
+				// 	1. circuit_state[2:5]
+				// 	2. isrBranchCurrent
+				// 	3. isrBranchVoltage
+				// 	store the above triplet in another struct that we can use later
+				// 	to autmatically determine whether a current is on the correct branch
+				// 	voltage
+			}
       samples[circuit_state].free = true;
       samples[circuit_state].index = 0;
 			outFlag = false;
-			// We want to sample at 16 KHz
-			// 16000 samples/sec = 62.5 microseconds
-			// The minimum timer period is about 10 micrseconds
 			state = STATE_COLLECT;
 			break;
 		case STATE_COLLECT:
@@ -313,9 +276,9 @@ bool outFlag[NUM_CIRCUITS] = {false, false, false, false, false};
 // uint8_t isrBranchCurrent;
 // uint8_t isrBranchVoltage;
 void loop() {
-	timerLoop(pWave_VOLT1, CURR1, outFlag[CURR1], circuit[CURR1]);
-	timerLoop(pWave_VOLT2, CURR2, outFlag[CURR2], circuit[CURR2]);
-	timerLoop(pWave_BRANCH, circuit_state, outFlag[circuit_state], circuit[circuit_state]);
+	timerLoop(false, pWave_VOLT1, circuit_state_curr1, outFlag[circuit_state_curr1], circuit[circuit_state_curr1]);
+	timerLoop(false, pWave_VOLT2, circuit_state_curr2, outFlag[circuit_state_curr2], circuit[circuit_state_curr2]);
+	timerLoop(true, pWave_BRANCH, circuit_state, outFlag[circuit_state], circuit[circuit_state]);
 }
 
 
@@ -373,3 +336,44 @@ void timerISR_BRANCH() {
     sb->index = 0;
   }
 }
+
+// // NOTE: Old SPI test code, remove when obsolete
+// #include "ADS6838SR.h"
+// // FIXME:
+// // replace SparkIntervalTimer with:
+// // https://docs.particle.io/reference/firmware/electron/#class-member-callbacks
+//
+// ads6838 MY_ADC;
+// void setup(){
+//   MY_ADC.init(20);
+//   pinMode(D0, OUTPUT);
+//   // digitalWrite(D0, HIGH);
+//   pinMode(D1, OUTPUT);
+//   // digitalWrite(D1, HIGH);
+//   pinMode(D2, OUTPUT);
+//   // digitalWrite(D2, HIGH);
+//   pinMode(D3, OUTPUT);
+//   // digitalWrite(D3, HIGH);
+//   pinMode(D7, OUTPUT);
+//   // digitalWrite(D7, HIGH);
+//   delay(1000);
+// }
+//
+// unsigned long ct = micros();
+// const unsigned long dt = 2000;
+//
+// uint16_t out[8];
+// void loop(){
+//   digitalWrite(D7, LOW);
+//   // Serial.println(micros());
+//   if((micros() - ct) > dt){
+//     MY_ADC.read8(out, ADS8638_REG_MANUAL, ADS8638_RANGE_5V);
+//     Serial.println(out[1]);
+//     ct = micros();
+//   }
+//   // runs at 5.2 kHz with all 8 channels and 20 MHz clk
+//   // runs at 17.8 kHz for a single channel and 20MHz clk
+//   // Serial.println(micros());
+//   digitalWrite(D7, HIGH);
+//   // delay(100);
+// }
