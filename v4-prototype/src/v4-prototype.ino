@@ -56,15 +56,15 @@ enum State { STATE_INIT = 0, STATE_COLLECT, STATE_TRANSFER, STATE_PROCESS };
 // states for active circuit being monitored
 enum ACTIVE_CIRCUIT { CURR1 = 0, CURR2 = 1, CURR3 = 2, CURR4 = 3, CURR5 = 4, CURR6 = 5 };
 
-// // states for active timer used in the main loop
-// enum ACTIVE_TIMER { VOLT1_TIMER = 0, VOLT2_TIMER, BRANCH_TIMER };
+// states for active timer used in the main loop
+enum ACTIVE_TIMER { VOLT1_TIMER = 0, VOLT2_TIMER, BRANCH_TIMER };
 
 // struct to hold samples gathered using timerISR() routines
 typedef struct {
 	volatile bool free;
 	volatile size_t  index;
-	volatile uint16_t v_data[SAMPLE_BUF_SIZE];
-	volatile uint16_t i_data[SAMPLE_BUF_SIZE];
+	uint16_t v_data[SAMPLE_BUF_SIZE];
+	uint16_t i_data[SAMPLE_BUF_SIZE];
 	// unsigned long t_data[SAMPLE_BUF_SIZE];
 } SampleBuf;
 
@@ -209,12 +209,14 @@ void timerLoop(State& state, bool is_branch, powerWave& pWave, ACTIVE_CIRCUIT& c
       samples[circuit_state]->free = true;
       samples[circuit_state]->index = 0;
 			outFlag = false;
+			branch_timer.begin(timerISR_BRANCH, 1000000 >> SAMPLE_RATE_SHIFT_BRANCH, uSec, TIMER7); //122 uSec sample time
 			Serial.println("INIT");Serial.println(System.freeMemory());
 			state = STATE_COLLECT;
 			break;
 		case STATE_COLLECT:
       if(!(samples[circuit_state]->free)) {
         state = STATE_TRANSFER;
+				branch_timer.end();
       }
 			Serial.println("COLLECT");Serial.println(System.freeMemory());
 			break;
@@ -283,11 +285,11 @@ void setup() {
 	// allocate the timer for the active circuit being measured
 	// i.e. main1, main2, branch1, main1, main2, branch2
 	delay(100);
-	volt1_timer.begin(timerISR_VOLT1, 1000000 >> SAMPLE_RATE_SHIFT_VOLT1, uSec, TIMER4); //122 uSec sample time
+	// volt1_timer.begin(timerISR_VOLT1, 1000000 >> SAMPLE_RATE_SHIFT_VOLT1, uSec, TIMER4); //122 uSec sample time
 	// delay(100);
 	// volt2_timer.begin(timerISR_VOLT2, 1000000 >> SAMPLE_RATE_SHIFT_VOLT2, uSec, TIMER3); //122 uSec sample time
 	delay(100);
-	branch_timer.begin(timerISR_BRANCH, 1000000 >> SAMPLE_RATE_SHIFT_BRANCH, uSec, TIMER7); //122 uSec sample time
+	// branch_timer.begin(timerISR_BRANCH, 1000000 >> SAMPLE_RATE_SHIFT_BRANCH, uSec, TIMER7); //122 uSec sample time
 	// delay(100);
 	// delay(250);
 
@@ -299,11 +301,10 @@ bool outFlag[NUM_CIRCUITS] = {false, false, false, false, false};
 // uint8_t isrBranchVoltage;
 volatile int freemem = 0;
 volatile int freemem3 = 0;
-State test_state = STATE_INIT;
 void loop() {
 	Serial.print("freemem3: ");Serial.print(freemem3);
 	Serial.print(" freemem: ");Serial.println(freemem);
-	// timerLoop(test_state, false, pWave_VOLT1, circuit_state_curr1, outFlag[circuit_state_curr1], circuit[circuit_state_curr1]);
+	timerLoop(state, false, pWave_VOLT1, circuit_state_curr1, outFlag[circuit_state_curr1], circuit[circuit_state_curr1]);
 	// timerLoop(state, false, pWave_VOLT2, circuit_state_curr2, outFlag[circuit_state_curr2], circuit[circuit_state_curr2]);
 	// timerLoop(state, true, pWave_BRANCH, circuit_state, outFlag[circuit_state], circuit[circuit_state]);
 }
