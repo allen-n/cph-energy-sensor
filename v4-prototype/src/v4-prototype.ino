@@ -63,8 +63,8 @@ enum ACTIVE_TIMER { VOLT1_TIMER = 0, VOLT2_TIMER, BRANCH_TIMER };
 typedef struct {
 	volatile bool free;
 	volatile size_t  index;
-	uint16_t v_data[SAMPLE_BUF_SIZE];
-	uint16_t i_data[SAMPLE_BUF_SIZE];
+	volatile uint16_t v_data[SAMPLE_BUF_SIZE];
+	volatile uint16_t i_data[SAMPLE_BUF_SIZE];
 	// unsigned long t_data[SAMPLE_BUF_SIZE];
 } SampleBuf;
 
@@ -92,7 +92,7 @@ const int waveSize = SAMPLE_BUF_SIZE;
 waveform vWave(waveSize, FILTER_KERNAL_SIZE); //NOTE: Occupies 6.28 kB of mem
 waveform iWave(waveSize, FILTER_KERNAL_SIZE);
 powerWave pWave_VOLT1(waveSize, SAMPLE_RATE_VOLT1); //NOTE: Occupies 128 kB of mem
-// powerWave pWave_VOLT2(waveSize, SAMPLE_RATE_VOLT2);
+powerWave pWave_VOLT2(waveSize, SAMPLE_RATE_VOLT2);
 powerWave pWave_BRANCH(waveSize, SAMPLE_RATE_BRANCH);
 
 // Helper Functions
@@ -191,38 +191,43 @@ void transferBuff(SampleBuf& buff, bool& outFlag, waveform& vWave, waveform& iWa
   // Serial.println("");
 }
 
-
-void timerLoop(State& state, bool is_branch, powerWave& pWave, ACTIVE_CIRCUIT& circuit_state, bool& outFlag,
+SampleBuf *sb = &samples_curr1;
+void timerLoop(State& state, powerWave& pWave, ACTIVE_CIRCUIT& circuit_state, bool& outFlag,
 	circuitVal& circuit){
 	switch(state)
 	{
 		case STATE_INIT:
-			if(is_branch){
-				// TODO: Change branch circuit values:
-				// 	1. circuit_state[2:5]
-				// 	2. isrBranchCurrent
-				// 	3. isrBranchVoltage
-				// 	store the above triplet in another struct that we can use later
-				// 	to autmatically determine whether a current is on the correct branch
-				// 	voltage
+			switch(circuit_state){
+				case CURR1:
+					volt1_timer.begin(timerISR_VOLT1, 1000000 >> SAMPLE_RATE_SHIFT_VOLT1, uSec, AUTO); //122 uSec sample time
+					break;
+				case CURR2:
+					volt2_timer.begin(timerISR_VOLT2, 1000000 >> SAMPLE_RATE_SHIFT_VOLT2, uSec, AUTO); //122 uSec sample time
+					break;
+				default:
+					branch_timer.begin(timerISR_BRANCH, 1000000 >> SAMPLE_RATE_SHIFT_BRANCH, uSec, AUTO); //122 uSec sample time
+					break;
 			}
       samples[circuit_state]->free = true;
       samples[circuit_state]->index = 0;
 			outFlag = false;
-			branch_timer.begin(timerISR_BRANCH, 1000000 >> SAMPLE_RATE_SHIFT_BRANCH, uSec, TIMER7); //122 uSec sample time
-			Serial.println("INIT");Serial.println(System.freeMemory());
+			// Serial.println("INIT0");Serial.println(System.freeMemory());
+			// volt1_timer.begin(timerISR_VOLT1, 1000000 >> SAMPLE_RATE_SHIFT_VOLT1, uSec, AUTO); //122 uSec sample time
+			// Serial.println("INIT1");Serial.println(System.freeMemory());
 			state = STATE_COLLECT;
 			break;
 		case STATE_COLLECT:
       if(!(samples[circuit_state]->free)) {
         state = STATE_TRANSFER;
+				volt1_timer.end();
+				volt2_timer.end();
 				branch_timer.end();
       }
-			Serial.println("COLLECT");Serial.println(System.freeMemory());
+			// Serial.println("COLLECT");Serial.println(System.freeMemory());
 			break;
 		case STATE_TRANSFER:
       transferBuff(*(samples[circuit_state]), outFlag, vWave, iWave);
-			Serial.println("TRANSFER");Serial.println(System.freeMemory());
+			// Serial.println("TRANSFER");Serial.println(System.freeMemory());
 			state = STATE_PROCESS;
 			if(outFlag) state = STATE_PROCESS;
 		break;
@@ -242,7 +247,7 @@ void timerLoop(State& state, bool is_branch, powerWave& pWave, ACTIVE_CIRCUIT& c
 			iWave.resetWave();
 			if(SERIAL_DEBUG) delay(15);
 			state = STATE_INIT;
-			Serial.println("PROCESS");Serial.println(System.freeMemory());
+			// Serial.println("PROCESS");Serial.println(System.freeMemory());
 			break;
 		default:
 			//default to dump buffers and start over
@@ -267,11 +272,12 @@ void setup() {
 	digitalWrite(LED2, HIGH);
   Particle.subscribe("sendEvent", dataHandler);
 	digitalWrite(LED3, HIGH);
+	MY_ADC.init(20);
 	delay(250);
 
 	// TODO: Move to address memory allocation problem
 	pWave_VOLT1.addComponents(vWave, iWave);
-	// pWave_VOLT2.addComponents(vWave, iWave);
+	pWave_VOLT2.addComponents(vWave, iWave);
 	pWave_BRANCH.addComponents(vWave, iWave);
 	digitalWrite(LED4, HIGH);
 
@@ -282,16 +288,6 @@ void setup() {
 	digitalWrite(LED3, LOW);
 	digitalWrite(LED4, HIGH);
 
-	// allocate the timer for the active circuit being measured
-	// i.e. main1, main2, branch1, main1, main2, branch2
-	delay(100);
-	// volt1_timer.begin(timerISR_VOLT1, 1000000 >> SAMPLE_RATE_SHIFT_VOLT1, uSec, TIMER4); //122 uSec sample time
-	// delay(100);
-	// volt2_timer.begin(timerISR_VOLT2, 1000000 >> SAMPLE_RATE_SHIFT_VOLT2, uSec, TIMER3); //122 uSec sample time
-	delay(100);
-	// branch_timer.begin(timerISR_BRANCH, 1000000 >> SAMPLE_RATE_SHIFT_BRANCH, uSec, TIMER7); //122 uSec sample time
-	// delay(100);
-	// delay(250);
 
 }
 
@@ -299,14 +295,12 @@ bool outFlag[NUM_CIRCUITS] = {false, false, false, false, false};
 // ACTIVE_CIRCUIT circuit_state = CURR1;
 // uint8_t isrBranchCurrent;
 // uint8_t isrBranchVoltage;
-volatile int freemem = 0;
-volatile int freemem3 = 0;
+
 void loop() {
-	Serial.print("freemem3: ");Serial.print(freemem3);
-	Serial.print(" freemem: ");Serial.println(freemem);
-	timerLoop(state, false, pWave_VOLT1, circuit_state_curr1, outFlag[circuit_state_curr1], circuit[circuit_state_curr1]);
-	// timerLoop(state, false, pWave_VOLT2, circuit_state_curr2, outFlag[circuit_state_curr2], circuit[circuit_state_curr2]);
-	// timerLoop(state, true, pWave_BRANCH, circuit_state, outFlag[circuit_state], circuit[circuit_state]);
+	// Serial.println(System.freeMemory());Serial.print(" , "); //FIXME
+	timerLoop(state, pWave_VOLT1, circuit_state_curr1, outFlag[circuit_state_curr1], circuit[circuit_state_curr1]);
+	timerLoop(state, pWave_VOLT2, circuit_state_curr2, outFlag[circuit_state_curr2], circuit[circuit_state_curr2]);
+	timerLoop(state, pWave_BRANCH, circuit_state, outFlag[circuit_state], circuit[circuit_state]);
 }
 
 // SampleBuf* curr1_samplebuff = &samples;
@@ -315,7 +309,6 @@ void timerISR_VOLT1(void) {
 	// This is an interrupt service routine. Don't put any heavy calculations here
 	// or call anything that's not interrupt-safe, such as:
 	// Serial, String, any memory allocation (new, malloc, etc.), Particle.publish and other Particle methods, and more.
-	freemem++; // System.freeMemory();
 	SampleBuf *sb = &samples_curr1;
   if(sb->free){
     sb->i_data[sb->index] = MY_ADC.read1(ADS8638_CURR1);
@@ -352,7 +345,6 @@ void timerISR_BRANCH(void) {
 	// This is an interrupt service routine. Don't put any heavy calculations here
 	// or call anything that's not interrupt-safe, such as:
 	// Serial, String, any memory allocation (new, malloc, etc.), Particle.publish and other Particle methods, and more.
-	freemem3++;
 	SampleBuf *sb = &samples_branch;
   if(sb->free){
     sb->i_data[sb->index] = MY_ADC.read1(isrBranchCurrent);
