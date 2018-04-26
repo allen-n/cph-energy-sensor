@@ -37,7 +37,7 @@
 ads6838::ads6838(){
 	// uint8_t commandByte;
 	// uint8_t k = 0;
-  this->_range = ADS8638_RANGE_2_5V;
+  this->_range = ADS8638_RANGE_5V;
 	// for (uint8_t i = 0; i < sizeof(this->tx_buffer_read8); i++) {
 	// 	if(i%2 == 0) {
 	// 		commandByte = (ADS8638_REG_MANUAL << 1) & 0xfe; //[15:9] reg addr, [8] read/write
@@ -84,7 +84,7 @@ uint8_t ads6838::readReg(uint8_t addr){
 }
 
 
-void ads6838::init(uint8_t clk_speed){
+void ads6838::init(uint8_t clk_speed, uint8_t range){
 	// Must call init() once, pass optional clk_speed argument to specify
 	// a clk other than default (20 MHZ) as an unsigned 8 bit int
 	pinMode(this->_SS, OUTPUT);
@@ -99,7 +99,8 @@ void ads6838::init(uint8_t clk_speed){
 	// https://en.wikipedia.org/wiki/Serial_Peripheral_Interface_Bus
 	SPI.setDataMode(SPI_MODE1);
 	SPI.begin();
-  uint8_t range = this->_range;
+  this->_range = range;
+  // uint8_t range = this->_range;
   range = (range << 4) | range;
   writeCmd(0x10, range);
   writeCmd(0x11, range);
@@ -168,6 +169,16 @@ uint16_t ads6838::read1(uint8_t channel, uint8_t range){
 	digitalWrite(this->_SS, LOW);
 	// delayMicroseconds(1);
 	// while(!(SPI.available())); // better alternative to blocking code, may not work
+  SPI.transfer(0x00);
+  SPI.transfer(0x00);
+
+	// delayMicroseconds(1);
+  // disable ADC SPI slave select
+  digitalWrite(this->_SS, HIGH);
+
+  digitalWrite(this->_SS, LOW);
+	// delayMicroseconds(1);
+	// while(!(SPI.available())); // better alternative to blocking code, may not work
   result[0] = SPI.transfer(0x00);
   result[1] = SPI.transfer(0x00);
 
@@ -177,6 +188,8 @@ uint16_t ads6838::read1(uint8_t channel, uint8_t range){
 
   uint16_t out = result[0];
   out = (out << 8) | result[1];
+  out = out & 0x0fff; //NOTE: For printing response
+  // out = (out & 0xf000) >> 12; //NOTE: For printing address of resp
   return out;
 
 
@@ -233,6 +246,8 @@ void ads6838::read8(uint16_t* out, uint8_t addr, uint8_t range){
 
     out[x] = result[0];
     out[x] = (out[x] << 8) | result[1];
+    out[x] = out[x] & 0x0fff; //NOTE: For printing response
+    // out[x] = (out[x] & 0xf000) >> 12; //NOTE: For printing address of resp
     // Serial.println(out[1]);
     // uint8_t reg = (result[0] >> 4) & 0x0f;
     // uint16_t val = (result[0]) & 0x0f;

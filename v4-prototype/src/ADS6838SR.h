@@ -46,7 +46,7 @@ public:
 	// void get8_DMA(uint8_t* rx_dest);
 	// void read8_DMA(uint8_t &flag);
 	void read8(uint16_t* out, uint8_t addr = ADS8638_REG_MANUAL, uint8_t range = ADS8638_RANGE_5V);
-	void init(uint8_t clk_speed = 20);
+	void init(uint8_t clk_speed = 20, uint8_t range = ADS8638_RANGE_5V);
 	void writeCmd(uint8_t addr, uint8_t cmd);
 	uint8_t readReg(uint8_t addr);
 	void selectChannel(uint8_t channel);
