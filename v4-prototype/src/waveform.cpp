@@ -1,6 +1,6 @@
 #include "waveform.h"
 // FIXME:
-// #include "Particle.h"
+#include "Particle.h"
 /**
   initialize the wave object with the number of samples it will take
   as numPts and the size of its moving average filter kernal as
@@ -75,7 +75,7 @@ void waveform::addData(double data)
 {
   int pos = this->_posPointer;
   int numPts = this->_numPts;
-  _datapoints[pos%numPts] = data;
+  this->_datapoints[pos%numPts] = data;
   // _timeStamp[pos%numPts] = currentTime;
   this->_posPointer++;
 }
@@ -90,24 +90,31 @@ void waveform::movingAvgFilter()
   int kernSize = this->_filtKernalSize;
   int p = (kernSize-1)/2;
   int q = p+1;
-  std::vector<double> y;
+  // std::vector<double> y(this->_datapoints);
+  double y[len];
   std::vector<double>& x = this->_datapoints;
-  y.resize(len);
 
   double acc = 0;
   for(size_t i = 0; i < kernSize; i++)
   {
     acc+=x[i];
+    y[i] = x[i];
   }
 
   y[p] = acc/kernSize;
+  // Serial.print(" y[p]: ");Serial.println(y[p]);
+
 
   for(size_t i = p+1; i < len - p; i++)
   {
+    // Serial.println(acc);
     acc = acc + x[i+p] - x[i-q];
     y[i] = acc / kernSize;
   }
-  x = y;
+  
+  for (int i = 0; i < this->_numPts; i++) {
+    x[i] = y[i];
+  }
 
 }
 
