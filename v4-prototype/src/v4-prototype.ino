@@ -22,7 +22,7 @@ const uint8_t ADS8638_CURR6 = 0x6; //100A Branch
 const uint8_t ADS8638_VOLT2 = 0x7;
 
 // Setting sample rates for branch circuits and 2 mains
-const size_t FILTER_KERNAL_SIZE = 2; //must be even
+const size_t FILTER_KERNAL_SIZE = 8; //must be even
 const size_t SAMPLE_BUF_SIZE =  512 + FILTER_KERNAL_SIZE; //these rates are doubled from base
 // main #1
 const long SAMPLE_RATE_VOLT1 = 1024;
@@ -168,8 +168,8 @@ void logCircuit(waveform& iWave, waveform& vWave, powerWave& pWave,
   }
   c1.addData(iRMS, vRMS, pf, apparentP, realP, reactiveP, harmonics);
   String out = c1.get_data_string();
-	Serial.print("Circuit ");Serial.print(isrBranchCurrent);Serial.print(" ");
-  Serial.println(out); //NOTE: Continuous Serial Debug Option, uncomment
+	// Serial.print("Circuit ");Serial.print(isrBranchCurrent);Serial.print(" ");
+  // Serial.println(out); //NOTE: Continuous Serial Debug Option, uncomment
   if(c1.data_ready()){
     digitalWrite(D7, HIGH);
     if(SERIAL_DEBUG){
@@ -267,7 +267,11 @@ void timerLoop(State& state, powerWave& pWave, ACTIVE_CIRCUIT& circuit_state, bo
 			iWave.getRMS();
 			vWave.getRMS();
 			pWave.calcP();
+			Serial.print("calcmem: ,");Serial.println(System.freeMemory());
+			pWave.trimData();
+			Serial.print("trimMem: ,");Serial.println(System.freeMemory());
 			pWave.computeFFT();
+			Serial.print("fftMem: ,");Serial.println(System.freeMemory());
       logCircuit(iWave, vWave, pWave, circuit, circuit_state);
       pushData(circuit, pushDataFlag[circuit_state]);
 			pWave.clearWave();

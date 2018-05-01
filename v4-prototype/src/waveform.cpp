@@ -1,6 +1,5 @@
 #include "waveform.h"
-// FIXME:
-#include "Particle.h"
+
 /**
   initialize the wave object with the number of samples it will take
   as numPts and the size of its moving average filter kernal as
@@ -111,7 +110,7 @@ void waveform::movingAvgFilter()
     acc = acc + x[i+p] - x[i-q];
     y[i] = acc / kernSize;
   }
-  
+
   for (int i = 0; i < this->_numPts; i++) {
     x[i] = y[i];
   }

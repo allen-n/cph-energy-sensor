@@ -28,7 +28,7 @@ class powerWave
     float getHarmonic(int i);
     float getHarmonicAngle(int i);
     size_t getNumHarmoics();
-    void trimData(std::vector<float>& data, std::vector<int>& peaks);
+    void trimData();
 
     size_t _errVal;
   protected:
@@ -39,7 +39,7 @@ class powerWave
     double _reactiveP = NULL;
     double _PF = NULL;
     std::vector<float> _pData;
-    std::vector<float> _pDataAngle;
+    // std::vector<float> _pDataAngle;
     int _SAMPLE_RATE;
     int _pDataSize = NULL;
     float FFT (float data[], unsigned long number_of_complex_samples, int isign);

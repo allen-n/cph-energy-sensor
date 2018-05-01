@@ -1,5 +1,8 @@
 #include "powerWave.h"
 
+//FIXME:
+#include "Particle.h"
+
 #define PI 3.14159265
 /*powerWave::powerWave(waveform& vWave, waveform& iWave) :
 waveform::waveform(vWave._numPts)*/
@@ -8,7 +11,7 @@ powerWave::powerWave(int numPts, int SAMPLE_RATE)
 // as numPts
 {
   this->_pData.clear();
-  this->_pDataAngle.clear();
+  // this->_pDataAngle.clear();
   this->_vWave = NULL;
   this->_iWave = NULL;
   this->_SAMPLE_RATE = SAMPLE_RATE;
@@ -21,8 +24,8 @@ void powerWave::clearWave()
   this->_realP = NULL;
   this->_reactiveP = NULL;
   this->_PF = NULL;
-  std::fill(_pData.begin(), _pData.end(), 0);
-  std::fill(_pDataAngle.begin(), _pDataAngle.end(), 0);
+  // std::fill(_pData.begin(), _pData.end(), -1);
+  // std::fill(_pDataAngle.begin(), _pDataAngle.end(), 0);
 }
 
 void powerWave::addComponents(waveform& vWave, waveform& iWave)
@@ -31,7 +34,7 @@ void powerWave::addComponents(waveform& vWave, waveform& iWave)
   if(this->_iWave == NULL) this->_iWave = & iWave;
   this->_pDataSize = (iWave._numPts - (iWave._filtKernalSize-1))*2;
   this->_pData.resize(this->_pDataSize);
-  this->_pDataAngle.resize(this->_pDataSize);
+  // this->_pDataAngle.resize(this->_pDataSize);
 }
 
 double powerWave::getApparentP()
@@ -89,19 +92,25 @@ void powerWave::calcP()
     this-> _apparentP = vRMS * iRMS;
 
     int size = this->_vWave->_numPts;
+    int peakSize = this->_iWave->_peakVect.size();
     double sum = 0;
     double v = 0;
     double i = 0;
     size_t index = (this->_iWave->_filtKernalSize-1)/2;
     std::vector<double>& vb = this->_vWave->_datapoints;
     std::vector<double>& ib = this->_iWave->_datapoints;
-    std::vector<int> temp_peaks = this->_iWave->_peakVect;
+    // int temp_peaks[peakSize];
+    // for (int i = 0; i < peakSize; i++) {
+    //     temp_peaks[i] = this->_iWave->_peakVect[i];
+    // }
+
     for(int m = index; m < size - index; ++m)
     {
       v = vb[m];
       i = ib[m];
       this->_pData[m-index] = i; //FFT on just current
-      this->_iWave->_peakVect[m-index] = temp_peaks[m];
+      // this->_iWave->_peakVect[m-index] = temp_peaks[m];
+      this->_iWave->_peakVect[m-index] = this->_iWave->_peakVect[m];
       sum += v*i;
     }
     this->_realP = sum/(size-(2.0*index));
@@ -109,50 +118,43 @@ void powerWave::calcP()
 
   this->_PF = (this->_realP)/(this->_apparentP);
   this->_reactiveP = sin(acos(this->_PF)) * this->_apparentP;
-
-  size_t len = this->_pData.size()/2;
-  float pi = 3.1415;
-  double buff[len];
-
-
-  trimData(this->_pData, this->_iWave->_peakVect);
-
-  for(size_t i=0; i<len; i++)
-  {
-
-    buff[i] = this->_pData[i];
-  }
-  for(size_t i=0; i<len*2; i++)
-  {
-    if(i%2 == 0) this->_pData[i] = buff[i/2];
-    else this->_pData[i] = 0;
-  }
 }
 
-void powerWave::trimData(std::vector<float>& data, std::vector<int>& peaks)
+void powerWave::trimData()
 {
-  std::vector<float> temp = data;
+  std::vector<float>& data = this->_pData;
+  std::vector<int>& peaks = this->_iWave->_peakVect;
+  Serial.println("A");
   int size = data.size();
+  int peak_size = peaks.size();
+  float temp[size];
+
+  for (size_t i = 0; i < size; i++) {
+    temp[i] = data[i]; //FIXME: use array
+  }
+  Serial.println("b");
   size_t start = 0;
   size_t stop = 0;
   size_t i = 0;
-  while(peaks[i] == 0 && i < peaks.size())
+  while(peaks[i] == 0 && i < peak_size)
   {
     temp[i] = 0;
     i++;
   }
   start = i;
-
-  i = peaks.size()-1;
-  while(peaks[i] == 0 && i > 0)
+  Serial.println("c");
+  i = peak_size - 1;
+  while(peaks[i] == 0 && i >= 0)
   {
     temp[i] = 0;
     i--;
   }
   stop = i;
-  data.clear();
-  data.resize(size, 0);
-
+  Serial.println("d");
+  // data.clear();
+  // data.resize(size, 0);
+  std::fill(data.begin(), data.end(), 0);
+  Serial.println("e");
   i = start;
   size_t k = 0;
   while( i <= stop)
@@ -161,13 +163,30 @@ void powerWave::trimData(std::vector<float>& data, std::vector<int>& peaks)
     i++;
     k++;
   }
+  Serial.println("f");
+  for(size_t i=0; i<size; i++)
+  {
+    Serial.println(data[i]);
+    temp[i] = data[i];
+  }
+  Serial.println("g");
+  for(size_t i=0; i<size; i++)
+  {
+    if(i%2 == 0) data[i] = temp[i/2];
+    else data[i] = 0;
+    Serial.println(data[i]);
+  }
+  Serial.println("FInished, , here");
 }
 
 //test with pure sine wave
 void powerWave::computeFFT()
 {
+  Serial.println("FFT START HERE");
   size_t len = this->_pData.size();
+  Serial.println("FFT START HERE2");
   float data[len];
+  Serial.println("FFT START HERE3");
   for(size_t i=0; i<len; i++)
   {
     data[i] = this->_pData[i];
@@ -179,12 +198,12 @@ void powerWave::computeFFT()
   float denom = 0;
   for(size_t i=0; i<len; i++)
   {
-    if(i < len/4)
+    if(i < len/2)
     {
       // Sending <RE, IM> for each frequency bucket, where
       // _pData[i] = RE and _pDataAngle[i] = IM
-      this->_pData[i] = data[i*2];
-      this->_pDataAngle[i] = data[(i*2)+1];
+      this->_pData[i] = data[i];
+      // this->_pDataAngle[i] = data[(i*2)+1];
       // commented old code below:
       // float t1 = data[i*2];
       // float t2 = data[(i*2)+1];
@@ -193,7 +212,7 @@ void powerWave::computeFFT()
       // denom += (t1*t1+t2*t2);
     } else {
       this->_pData[i] = 0;
-      this->_pDataAngle[i] = 0;
+      // this->_pDataAngle[i] = 0;
     }
   }
 
@@ -209,13 +228,13 @@ void powerWave::computeFFT()
   for(size_t i=0; i<this->_numHarmonics; i++)
   {
     double intpart;
-    int index = i*60;
+    int index = i*60*2;
     double fracpart = (float)index/(float)resolution;
     float frac = modf(fracpart, &intpart);
     index = intpart;
     // this->_harmonics[i] = index+frac;
     this->_harmonics[i] = (this->_pData[index]*(1-frac) + this->_pData[index+1]*frac);
-    this->_harmonicsAngle[i] = (this->_pDataAngle[index]*(1-frac) + this->_pDataAngle[index+1]*frac);
+    // this->_harmonicsAngle[i] = (this->_pDataAngle[index]*(1-frac) + this->_pDataAngle[index+1]*frac);
     // denom2 += this->_harmonics[i];
   }
   // taking harmonic power over only harmonic frequencies
@@ -223,7 +242,7 @@ void powerWave::computeFFT()
   {
       // this->_harmonics[i] = roundf(10000*this->_harmonics[i]/denom2)/100;
       this->_harmonics[i] = roundf(1000*this->_harmonics[i])/1000;
-      this->_harmonicsAngle[i] = roundf(1000*this->_harmonicsAngle[i])/1000;
+      // this->_harmonicsAngle[i] = roundf(1000*this->_harmonicsAngle[i])/1000;
   }
 }
 
