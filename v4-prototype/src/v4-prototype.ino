@@ -50,6 +50,13 @@ const uint8_t NUM_CIRCUITS = 6;
 // # of branch circuits being monitored, i.e. NUM_CIRCUITS - # mains currents
 const int NUM_BRANCH_CIRCUITS = NUM_CIRCUITS - 2;
 
+// defining pairings of voltage readings with their cooresponding current
+
+uint8_t CIRCUIT_PAIR[NUM_CIRCUITS] = {
+	ADS8638_VOLT1, ADS8638_VOLT1, ADS8638_VOLT1,
+	ADS8638_VOLT1, ADS8638_VOLT1, ADS8638_VOLT2
+};
+
 // states for data processing in main loop()
 enum State { STATE_INIT = 0, STATE_COLLECT, STATE_TRANSFER, STATE_PROCESS };
 
@@ -91,8 +98,8 @@ State state_branch = STATE_INIT;
 ACTIVE_CIRCUIT circuit_state = CURR3;
 ACTIVE_CIRCUIT circuit_state_curr1 = CURR1;
 ACTIVE_CIRCUIT circuit_state_curr2 = CURR2;
-uint8_t isrBranchCurrent = ADS8638_VOLT1;
-uint8_t isrBranchVoltage = ADS8638_CURR3;
+uint8_t isrBranchCurrent = ADS8638_CURR1;
+uint8_t isrBranchVoltage = ADS8638_VOLT1;
 
 const int waveSize = SAMPLE_BUF_SIZE;
 // TODO: Move to address memory allocation problem
@@ -161,7 +168,7 @@ void logCircuit(waveform& iWave, waveform& vWave, powerWave& pWave,
   }
   c1.addData(iRMS, vRMS, pf, apparentP, realP, reactiveP, harmonics);
   String out = c1.get_data_string();
-	Serial.print("Circuit ");Serial.print(circuit_state);Serial.print(" ");
+	Serial.print("Circuit ");Serial.print(isrBranchCurrent);Serial.print(" ");
   Serial.println(out); //NOTE: Continuous Serial Debug Option, uncomment
   if(c1.data_ready()){
     digitalWrite(D7, HIGH);
@@ -212,9 +219,12 @@ void timerLoop(State& state, powerWave& pWave, ACTIVE_CIRCUIT& circuit_state, bo
 					volt2_timer.begin(timerISR_VOLT2, 1000000 >> SAMPLE_RATE_SHIFT_VOLT2, uSec, AUTO); //122 uSec sample time
 					break;
 				default:
+					//pick next current branch, current branch values start at ADS8638_CURR1
+					isrBranchCurrent-= ADS8638_CURR1;
+					isrBranchCurrent = ((isrBranchCurrent + 1) % (NUM_BRANCH_CIRCUITS));
+					isrBranchCurrent+= ADS8638_CURR1;
+					isrBranchVoltage = CIRCUIT_PAIR[isrBranchCurrent - ADS8638_CURR1];
 					branch_timer.begin(timerISR_BRANCH, 1000000 >> SAMPLE_RATE_SHIFT_BRANCH, uSec, AUTO); //122 uSec sample time
-					// isrBranchCurrent = ADS8638_VOLT1;
-					// isrBranchVoltage = ADS8638_CURR1;
 					break;
 			}
       samples[circuit_state]->free = true;
@@ -317,8 +327,8 @@ bool outFlag[NUM_CIRCUITS] = {false, false, false, false, false};
 
 void loop() {
 	// Serial.println(System.freeMemory());Serial.print(" , "); //FIXME
-	timerLoop(state_volt1, pWave_VOLT1, circuit_state_curr1, outFlag[circuit_state_curr1], circuit[circuit_state_curr1]);
-	timerLoop(state_volt2, pWave_VOLT2, circuit_state_curr2, outFlag[circuit_state_curr2], circuit[circuit_state_curr2]);
+	// timerLoop(state_volt1, pWave_VOLT1, circuit_state_curr1, outFlag[circuit_state_curr1], circuit[circuit_state_curr1]);
+	// timerLoop(state_volt2, pWave_VOLT2, circuit_state_curr2, outFlag[circuit_state_curr2], circuit[circuit_state_curr2]);
 	timerLoop(state_branch, pWave_BRANCH, circuit_state, outFlag[circuit_state], circuit[circuit_state]);
 
 
@@ -336,7 +346,7 @@ void timerISR_VOLT1(void) {
 	SampleBuf *sb = &samples_curr1;
   if(sb->free){
     sb->i_data[sb->index] = MY_ADC.read1(ADS8638_CURR5);
-		sb->v_data[sb->index] = MY_ADC.read1(ADS8638_VOLT1);
+		sb->v_data[sb->index] = MY_ADC.read1(CIRCUIT_PAIR[ADS8638_CURR5]);
 		sb->t_data[sb->index] = micros();
 		sb->index++;
   }
@@ -354,7 +364,7 @@ void timerISR_VOLT2(void) {
   SampleBuf *sb = &samples_curr2;
   if(sb->free){
     sb->i_data[sb->index] = MY_ADC.read1(ADS8638_CURR6);
-		sb->v_data[sb->index] = MY_ADC.read1(ADS8638_VOLT2);
+		sb->v_data[sb->index] = MY_ADC.read1(CIRCUIT_PAIR[ADS8638_CURR6]);
 		sb->t_data[sb->index] = micros();
 		sb->index++;
   }
@@ -372,7 +382,7 @@ void timerISR_BRANCH(void) {
 	SampleBuf *sb = &samples_branch;
   if(sb->free){
     sb->i_data[sb->index] = MY_ADC.read1(isrBranchCurrent);
-		sb->v_data[sb->index] = MY_ADC.read1(isrBranchVoltage);
+		sb->v_data[sb->index] = MY_ADC.read1(CIRCUIT_PAIR[isrBranchVoltage]);
 		sb->t_data[sb->index] = micros();
 		sb->index++;
   }
