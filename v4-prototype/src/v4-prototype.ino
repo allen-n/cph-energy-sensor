@@ -164,12 +164,12 @@ void logCircuit(waveform& iWave, waveform& vWave, powerWave& pWave,
   float harmonics[numHarmoics];
   for(size_t i = 0; i < numHarmoics; i++)
   {
-    harmonics[i] = pWave.getHarmonicAngle(i);
+    harmonics[i] = pWave.getHarmonic(i);
   }
   c1.addData(iRMS, vRMS, pf, apparentP, realP, reactiveP, harmonics);
   String out = c1.get_data_string();
-	// Serial.print("Circuit ");Serial.print(isrBranchCurrent);Serial.print(" ");
-  // Serial.println(out); //NOTE: Continuous Serial Debug Option, uncomment
+	Serial.print("Circuit ");Serial.print(isrBranchCurrent);Serial.print(" ");
+  Serial.println(out); //NOTE: Continuous Serial Debug Option, uncomment
   if(c1.data_ready()){
     digitalWrite(D7, HIGH);
     if(SERIAL_DEBUG){
@@ -182,8 +182,8 @@ void logCircuit(waveform& iWave, waveform& vWave, powerWave& pWave,
   }
 }
 
-double v_ratio = (3.3 * 100000) / 4095;
-double i_ratio = (5 * 100000) / (4095 * 10);
+double v_ratio = (3.3 * 1000000) / 4095;
+double i_ratio = (3.3 * 1000000) / (4095 * 10);
 // vref * 100000 / (adc counts * turns_ratio/(burdenR*1000))
 void transferBuff(SampleBuf& buff, bool& outFlag, waveform& vWave, waveform& iWave){
   for(size_t i = 0; i < SAMPLE_BUF_SIZE; i++)
@@ -192,10 +192,10 @@ void transferBuff(SampleBuf& buff, bool& outFlag, waveform& vWave, waveform& iWa
 		//all values now in mV
 
 		//values without ratios above are in mV detected by microcontroller
-		double i_val = i_ratio * buff.i_data[i];
+		double i_val = (i_ratio * buff.i_data[i]); //account for CT offset
 		double v_val = v_ratio * buff.v_data[i];
-		iWave.addData(floorf(i_val)/100);
-		vWave.addData(floorf(v_val)/100);
+		iWave.addData(floorf(i_val)/1000);
+		vWave.addData(floorf(v_val)/1000);
     // FIXME:
     // Serial.print(i);Serial.print(" , ");Serial.print(time_val);Serial.print(" , ");
     // Serial.println(floorf(i_val)/100);
@@ -267,11 +267,8 @@ void timerLoop(State& state, powerWave& pWave, ACTIVE_CIRCUIT& circuit_state, bo
 			iWave.getRMS();
 			vWave.getRMS();
 			pWave.calcP();
-			Serial.print("calcmem: ,");Serial.println(System.freeMemory());
 			pWave.trimData();
-			Serial.print("trimMem: ,");Serial.println(System.freeMemory());
 			pWave.computeFFT();
-			Serial.print("fftMem: ,");Serial.println(System.freeMemory());
       logCircuit(iWave, vWave, pWave, circuit, circuit_state);
       pushData(circuit, pushDataFlag[circuit_state]);
 			pWave.clearWave();

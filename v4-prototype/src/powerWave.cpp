@@ -124,7 +124,6 @@ void powerWave::trimData()
 {
   std::vector<float>& data = this->_pData;
   std::vector<int>& peaks = this->_iWave->_peakVect;
-  Serial.println("A");
   int size = data.size();
   int peak_size = peaks.size();
   float temp[size];
@@ -132,7 +131,6 @@ void powerWave::trimData()
   for (size_t i = 0; i < size; i++) {
     temp[i] = data[i]; //FIXME: use array
   }
-  Serial.println("b");
   size_t start = 0;
   size_t stop = 0;
   size_t i = 0;
@@ -142,7 +140,6 @@ void powerWave::trimData()
     i++;
   }
   start = i;
-  Serial.println("c");
   i = peak_size - 1;
   while(peaks[i] == 0 && i >= 0)
   {
@@ -150,11 +147,9 @@ void powerWave::trimData()
     i--;
   }
   stop = i;
-  Serial.println("d");
-  // data.clear();
-  // data.resize(size, 0);
+
   std::fill(data.begin(), data.end(), 0);
-  Serial.println("e");
+
   i = start;
   size_t k = 0;
   while( i <= stop)
@@ -163,30 +158,24 @@ void powerWave::trimData()
     i++;
     k++;
   }
-  Serial.println("f");
   for(size_t i=0; i<size; i++)
   {
-    Serial.println(data[i]);
     temp[i] = data[i];
   }
-  Serial.println("g");
+
   for(size_t i=0; i<size; i++)
   {
     if(i%2 == 0) data[i] = temp[i/2];
     else data[i] = 0;
-    Serial.println(data[i]);
   }
-  Serial.println("FInished, , here");
+
 }
 
 //test with pure sine wave
 void powerWave::computeFFT()
 {
-  Serial.println("FFT START HERE");
   size_t len = this->_pData.size();
-  Serial.println("FFT START HERE2");
   float data[len];
-  Serial.println("FFT START HERE3");
   for(size_t i=0; i<len; i++)
   {
     data[i] = this->_pData[i];
@@ -198,6 +187,7 @@ void powerWave::computeFFT()
   float denom = 0;
   for(size_t i=0; i<len; i++)
   {
+    // Serial.println(data[i]);
     if(i < len/2)
     {
       // Sending <RE, IM> for each frequency bucket, where
@@ -215,6 +205,7 @@ void powerWave::computeFFT()
       // this->_pDataAngle[i] = 0;
     }
   }
+  // Serial.println(" ");
 
   // Taking harmonic power as percentage over total spectrum
   // for(size_t i=0; i<len/4; i++)
@@ -228,22 +219,23 @@ void powerWave::computeFFT()
   for(size_t i=0; i<this->_numHarmonics; i++)
   {
     double intpart;
-    int index = i*60*2;
+    int index = i*60;
     double fracpart = (float)index/(float)resolution;
     float frac = modf(fracpart, &intpart);
     index = intpart;
     // this->_harmonics[i] = index+frac;
-    this->_harmonics[i] = (this->_pData[index]*(1-frac) + this->_pData[index+1]*frac);
+    this->_harmonics[i] = (this->_pData[index]*(1-frac) + this->_pData[index+2]*frac);
+    this->_harmonics[i] = roundf(1000*this->_harmonics[i])/1000;
     // this->_harmonicsAngle[i] = (this->_pDataAngle[index]*(1-frac) + this->_pDataAngle[index+1]*frac);
     // denom2 += this->_harmonics[i];
   }
   // taking harmonic power over only harmonic frequencies
-  for(size_t i=0; i<this->_numHarmonics; i++)
-  {
-      // this->_harmonics[i] = roundf(10000*this->_harmonics[i]/denom2)/100;
-      this->_harmonics[i] = roundf(1000*this->_harmonics[i])/1000;
-      // this->_harmonicsAngle[i] = roundf(1000*this->_harmonicsAngle[i])/1000;
-  }
+  // for(size_t i=0; i<this->_numHarmonics; i++)
+  // {
+  //     // this->_harmonics[i] = roundf(10000*this->_harmonics[i]/denom2)/100;
+  //     this->_harmonics[i] = roundf(1000*this->_harmonics[i])/1000;
+  //     // this->_harmonicsAngle[i] = roundf(1000*this->_harmonicsAngle[i])/1000;
+  // }
 }
 
 #define SWAP(a,b)tempr=(a);(a)=(b);(b)=tempr

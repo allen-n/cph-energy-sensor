@@ -73,7 +73,7 @@ bool circuitVal::data_ready(){
 
 
 String circuitVal::get_data_string(){
-  String iS = String(this->iRMS, 2) + " ";
+  String iS = String(this->iRMS, 3) + " ";
   String vS = String(this->vRMS, 2) + " ";
   String pfS = String(this->pf, 2) + " ";
   String sS = String(this->apparentP, 2) + " ";
