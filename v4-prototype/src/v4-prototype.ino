@@ -211,6 +211,7 @@ void timerLoop(State& state, powerWave& pWave, ACTIVE_CIRCUIT& circuit_state, bo
 	switch(state)
 	{
 		case STATE_INIT:
+		Serial.println("init");
 			switch(circuit_state){
 				case CURR1:
 					volt1_timer.begin(timerISR_VOLT1, 1000000 >> SAMPLE_RATE_SHIFT_VOLT1, uSec, AUTO); //122 uSec sample time
@@ -236,6 +237,7 @@ void timerLoop(State& state, powerWave& pWave, ACTIVE_CIRCUIT& circuit_state, bo
 			state = STATE_COLLECT;
 			break;
 		case STATE_COLLECT:
+			Serial.println("collect");
       if(!(samples[circuit_state]->free)) {
         state = STATE_PROCESS;
 				switch(circuit_state){
@@ -253,14 +255,16 @@ void timerLoop(State& state, powerWave& pWave, ACTIVE_CIRCUIT& circuit_state, bo
 			// Serial.println("COLLECT");Serial.println(System.freeMemory());
 			break;
 		case STATE_TRANSFER:
-      // transferBuff(*(samples[circuit_state]), outFlag, vWave, iWave);
+			Serial.println("transfer");
+      transferBuff(*(samples[circuit_state]), outFlag, vWave, iWave);
 			// Serial.println("TRANSFER");Serial.println(System.freeMemory());
 			// state = STATE_PROCESS;
 			if(outFlag) state = STATE_PROCESS;
-		break;
+			break;
 		case STATE_PROCESS:
+			Serial.println("process	");
 			outFlag = false;
-			transferBuff(*(samples[circuit_state]), outFlag, vWave, iWave);
+			// transferBuff(*(samples[circuit_state]), outFlag, vWave, iWave);
 			// Serial.print("Logging circuit for c");Serial.println(circuit_state);
 			iWave.movingAvgFilter();
 			vWave.movingAvgFilter();
@@ -328,8 +332,8 @@ bool outFlag[NUM_CIRCUITS] = {false, false, false, false, false};
 
 void loop() {
 	// Serial.println(System.freeMemory());Serial.print(" , "); //FIXME
-	// timerLoop(state_volt1, pWave_VOLT1, circuit_state_curr1, outFlag[circuit_state_curr1], circuit[circuit_state_curr1]);
-	// timerLoop(state_volt2, pWave_VOLT2, circuit_state_curr2, outFlag[circuit_state_curr2], circuit[circuit_state_curr2]);
+	timerLoop(state_volt1, pWave_VOLT1, circuit_state_curr1, outFlag[circuit_state_curr1], circuit[circuit_state_curr1]);
+	timerLoop(state_volt2, pWave_VOLT2, circuit_state_curr2, outFlag[circuit_state_curr2], circuit[circuit_state_curr2]);
 	timerLoop(state_branch, pWave_BRANCH, circuit_state, outFlag[circuit_state], circuit[circuit_state]);
 
 

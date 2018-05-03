@@ -1,7 +1,7 @@
 #include "powerWave.h"
 
 //FIXME:
-#include "Particle.h"
+// #include "Particle.h"
 
 #define PI 3.14159265
 /*powerWave::powerWave(waveform& vWave, waveform& iWave) :
@@ -131,14 +131,16 @@ void powerWave::trimData()
   for (size_t i = 0; i < size; i++) {
     temp[i] = data[i]; //FIXME: use array
   }
-  size_t start = 0;
-  size_t stop = 0;
-  size_t i = 0;
-  while(peaks[i] == 0 && i < peak_size)
+
+  int start = 0;
+  int stop = 0;
+  int i = 0;
+    while(peaks[i] == 0 && i < peak_size)
   {
     temp[i] = 0;
     i++;
   }
+
   start = i;
   i = peak_size - 1;
   while(peaks[i] == 0 && i >= 0)
@@ -152,12 +154,14 @@ void powerWave::trimData()
 
   i = start;
   size_t k = 0;
-  while( i <= stop)
+  while( i <= stop && stop > 0)
   {
+      // Serial.println("f");
     data[k] = temp[i];
     i++;
     k++;
   }
+
   for(size_t i=0; i<size; i++)
   {
     temp[i] = data[i];
