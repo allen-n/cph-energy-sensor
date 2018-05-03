@@ -274,6 +274,8 @@ void timerLoop(State& state, powerWave& pWave, ACTIVE_CIRCUIT& circuit_state, bo
 			pWave.clearWave();
 			vWave.resetWave();
 			iWave.resetWave();
+			if(pWave.getRealP < 0) swapCircuit(circuit_state); //this is the wrong phase voltage, swap them
+
 			if(SERIAL_DEBUG) delay(15);
 			state = STATE_INIT;
 			// Serial.println("PROCESS");Serial.println(System.freeMemory());
@@ -338,6 +340,11 @@ void loop() {
 	// Serial.print(" state_branch: ");Serial.println((int)MY_ADC.read1(ADS8638_CURR3));
 }
 
+void swapCircuit(uint8_t position){
+	if(CIRCUIT_PAIR[position] == ADS8638_VOLT1) CIRCUIT_PAIR[position] = ADS8638_VOLT2;
+	else CIRCUIT_PAIR[position] = ADS8638_VOLT1;
+}
+
 // SampleBuf* curr1_samplebuff = &samples;
 // this timerISR is set to monitor the VOLT2 main
 void timerISR_VOLT1(void) {
@@ -357,6 +364,7 @@ void timerISR_VOLT1(void) {
     sb->index = 0;
   }
 }
+
 
 void timerISR_VOLT2(void) {
 	// This is an interrupt service routine. Don't put any heavy calculations here
