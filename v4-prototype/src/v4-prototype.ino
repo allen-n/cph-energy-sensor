@@ -167,19 +167,21 @@ void logCircuit(waveform& iWave, waveform& vWave, powerWave& pWave,
     harmonics[i] = pWave.getHarmonic(i);
   }
   c1.addData(iRMS, vRMS, pf, apparentP, realP, reactiveP, harmonics);
-  String out = c1.get_data_string();
-	Serial.print("Circuit ");Serial.print(isrBranchCurrent);Serial.print(" ");
+	int circuit = (int)circuit_state + isrBranchCurrent;
+	String out = String(circuit) + " "; //indicating which circuit is sending the data
+	out += c1.get_data_string();
+	// Serial.print("Circuit ");Serial.print(isrBranchCurrent);Serial.print(" ");
   Serial.println(out); //NOTE: Continuous Serial Debug Option, uncomment
-  if(c1.data_ready()){
-    digitalWrite(D7, HIGH);
-    if(SERIAL_DEBUG){
-      Serial.println(out);
-    } else {
-      sendInterval = millis();
-      Particle.publish("send-i,v,pf,s,p,q", out, 5, PRIVATE);
-    }
-    digitalWrite(D7, LOW);
-  }
+  // if(c1.data_ready()){
+  //   digitalWrite(D7, HIGH);
+  //   if(SERIAL_DEBUG){
+  //     Serial.println(out);
+  //   } else {
+  //     sendInterval = millis();
+  //     Particle.publish("send-i,v,pf,s,p,q", out, 5, PRIVATE);
+  //   }
+  //   digitalWrite(D7, LOW);
+  // }
 }
 
 double v_ratio = (3.3 * 1000000) / (4095 * 2);
@@ -260,6 +262,20 @@ void timerLoop(State& state, powerWave& pWave, ACTIVE_CIRCUIT& circuit_state, bo
 			break;
 		case STATE_PROCESS:
 			outFlag = false;
+			switch(circuit_state){ //once these values are finalized, put the final value to save computation time
+				case CURR1:
+					v_ratio = (3.3 * 1000000) / (4095 * 2);
+					i_ratio = ((3.3 * 1000000) / (4095 * 400));
+					break;
+				case CURR2:
+					v_ratio = (3.3 * 1000000) / (4095 * 2);
+					i_ratio = ((3.3 * 1000000) / (4095 * 400));
+					break;
+				default:
+					v_ratio = ((3.3 * 1000000) / (4095 * 2))*6/10;
+					i_ratio = ((3.3 * 1000000) / (4095 * 10));
+					break;
+			}
 			transferBuff(*(samples[circuit_state]), outFlag, vWave, iWave);
 			// Serial.print("Logging circuit for c");Serial.println(circuit_state);
 			iWave.movingAvgFilter();
@@ -274,7 +290,7 @@ void timerLoop(State& state, powerWave& pWave, ACTIVE_CIRCUIT& circuit_state, bo
 			pWave.clearWave();
 			vWave.resetWave();
 			iWave.resetWave();
-			if(pWave.getRealP < 0) swapCircuit(circuit_state); //this is the wrong phase voltage, swap them
+			if(pWave.getRealP() < 0) swapCircuit(circuit_state); //this is the wrong phase voltage, swap them
 
 			if(SERIAL_DEBUG) delay(15);
 			state = STATE_INIT;
@@ -330,7 +346,7 @@ bool outFlag[NUM_CIRCUITS] = {false, false, false, false, false};
 
 void loop() {
 	// Serial.println(System.freeMemory());Serial.print(" , "); //FIXME
-	// timerLoop(state_volt1, pWave_VOLT1, circuit_state_curr1, outFlag[circuit_state_curr1], circuit[circuit_state_curr1]);
+	timerLoop(state_volt1, pWave_VOLT1, circuit_state_curr1, outFlag[circuit_state_curr1], circuit[circuit_state_curr1]);
 	timerLoop(state_volt2, pWave_VOLT2, circuit_state_curr2, outFlag[circuit_state_curr2], circuit[circuit_state_curr2]);
 	// timerLoop(state_branch, pWave_BRANCH, circuit_state, outFlag[circuit_state], circuit[circuit_state]);
 
@@ -391,7 +407,7 @@ void timerISR_BRANCH(void) {
 	SampleBuf *sb = &samples_branch;
   if(sb->free){
     sb->i_data[sb->index] = MY_ADC.read1(isrBranchCurrent);
-		sb->v_data[sb->index] = MY_ADC.read1(CIRCUIT_PAIR[isrBranchVoltage]);
+		sb->v_data[sb->index] = MY_ADC.read1(CIRCUIT_PAIR[isrBranchVoltage]); //account for sample speed difference
 		sb->t_data[sb->index] = micros();
 		sb->index++;
   }
@@ -401,51 +417,3 @@ void timerISR_BRANCH(void) {
     sb->index = 0;
   }
 }
-
-// // NOTE: Old SPI test code, remove when obsolete
-// #include "ADS6838SR.h"
-// // FIXME:
-// // replace SparkIntervalTimer with:
-// // https://docs.particle.io/reference/firmware/electron/#class-member-callbacks
-//
-// ads6838 MY_ADC;
-// void setup(){
-//   MY_ADC.init(20);
-//   pinMode(D0, OUTPUT);
-//   // digitalWrite(D0, HIGH);
-//   pinMode(D1, OUTPUT);
-//   // digitalWrite(D1, HIGH);
-//   pinMode(D2, OUTPUT);
-//   // digitalWrite(D2, HIGH);
-//   pinMode(D3, OUTPUT);
-//   // digitalWrite(D3, HIGH);
-//   pinMode(D7, OUTPUT);
-//   // digitalWrite(D7, HIGH);
-//   delay(1000);
-// }
-//
-// unsigned long ct = micros();
-// const unsigned long dt = 2000;
-//
-// uint16_t out[8];
-// void loop(){
-//   digitalWrite(D7, LOW);
-//   // Serial.println(micros());
-//   if((micros() - ct) > dt){
-//     // MY_ADC.read8(out, ADS8638_REG_MANUAL, ADS8638_RANGE_5V);
-// 		for (int i = 0; i < 8; i++) {
-// 			unsigned long a = micros();
-// 			int test =  MY_ADC.read1(i);
-// 			unsigned long b = micros();
-// 			Serial.print(test);Serial.print(", ");
-// 			// Serial.print(b-a);Serial.print(", ");
-// 		}
-// 		Serial.println();
-//     ct = micros();
-//   }
-//   // runs at 5.2 kHz with all 8 channels and 20 MHz clk
-//   // runs at 17.8 kHz for a single channel and 20MHz clk
-//   // Serial.println(micros());
-//   digitalWrite(D7, HIGH);
-//   // delay(100);
-// }
