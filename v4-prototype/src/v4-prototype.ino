@@ -40,9 +40,15 @@ const int SAMPLE_RATE_SHIFT_BRANCH = log(SAMPLE_RATE_BRANCH)/log(2);
 #define LED3 D3
 #define LED4 D4
 
+// Particle Wi-Fi and startup initializations, ANT_INTERNAL for internal
+STARTUP(WiFi.selectAntenna(ANT_EXTERNAL)); // selects the u.FL antenna,
+// STARTUP(WiFi.selectAntenna(ANT_INTERNAL)); // selects the internal antenna,
 
 // Configuring Serial output (SERIAL_DEBUG) or webhook output (!SERIAL_DEBUG)
-const bool SERIAL_DEBUG = true;
+const bool SERIAL_DEBUG = false;
+
+// Configuring antenna
+const bool EXT_ANTENNA = true;
 
 // # of circuits being monitored, i.e. # ADC Channels - # mains voltages
 const uint8_t NUM_CIRCUITS = 6;
@@ -131,23 +137,32 @@ void dataHandler(const char *event, const char *data)
 bool pushDataFlag[NUM_CIRCUITS] = {false, false, false, false, false, false};
 void sendEvent()
 {
-  pushDataFlag[circuit_state] = true;
+	for (int i = 0; i < NUM_CIRCUITS; i++) {
+		pushDataFlag[i] = true;
+	}
+  // pushDataFlag[circuit_state] = true;
 }
 
 unsigned long sendInterval;
 const unsigned long sendIntervalDelta = 20*3600; // 20 minutes
-
+// int circuit = (int)circuit_state + isrBranchCurrent;
+// String out = String(circuit) + " "; //indicating which circuit is sending the data
+// out += c1.get_data_string();
 void pushData(circuitVal& c1, bool& pushDataFlag)
 {
+	int circuit = (int)circuit_state;
+	if(circuit == 2) circuit += isrBranchCurrent;
+	String out = String(circuit) + " "; //indicating which circuit is sending the data
   if((millis() - sendInterval) > sendIntervalDelta > 0 && !SERIAL_DEBUG)
   {
-    String outStr = c1.get_data_string();
+    String outStr = out + c1.get_data_string();
     Particle.publish("send-i,v,pf,s,p,q", outStr, 5, PRIVATE);
   }
   if(pushDataFlag && !SERIAL_DEBUG)
   {
     pushDataFlag = false;
-    String outStr = c1.get_data_string();
+    String outStr = out + c1.get_data_string();
+		digitalWrite(LED1, HIGH);
     Particle.publish("send-i,v,pf,s,p,q", outStr, 5, PRIVATE);
   }
 }
@@ -167,21 +182,22 @@ void logCircuit(waveform& iWave, waveform& vWave, powerWave& pWave,
     harmonics[i] = pWave.getHarmonic(i);
   }
   c1.addData(iRMS, vRMS, pf, apparentP, realP, reactiveP, harmonics);
-	int circuit = (int)circuit_state + isrBranchCurrent;
+	int circuit = (int)circuit_state;
+	if(circuit == 2) circuit += isrBranchCurrent;
 	String out = String(circuit) + " "; //indicating which circuit is sending the data
 	out += c1.get_data_string();
 	// Serial.print("Circuit ");Serial.print(isrBranchCurrent);Serial.print(" ");
-  Serial.println(out); //NOTE: Continuous Serial Debug Option, uncomment
-  // if(c1.data_ready()){
-  //   digitalWrite(D7, HIGH);
-  //   if(SERIAL_DEBUG){
-  //     Serial.println(out);
-  //   } else {
-  //     sendInterval = millis();
-  //     Particle.publish("send-i,v,pf,s,p,q", out, 5, PRIVATE);
-  //   }
-  //   digitalWrite(D7, LOW);
-  // }
+  // Serial.println(out); //NOTE: Continuous Serial Debug Option, uncomment
+  if(c1.data_ready()){
+    digitalWrite(D7, HIGH);
+    if(SERIAL_DEBUG){
+      Serial.println(out);
+    } else {
+      sendInterval = millis();
+      Particle.publish("send-i,v,pf,s,p,q", out, 5, PRIVATE);
+    }
+    digitalWrite(D7, LOW);
+  }
 }
 
 double v_ratio = (3.3 * 1000000) / (4095 * 2);
@@ -224,6 +240,7 @@ void timerLoop(State& state, powerWave& pWave, ACTIVE_CIRCUIT& circuit_state, bo
 					//pick next current branch, current branch values start at ADS8638_CURR1
 					isrBranchCurrent-= ADS8638_CURR1;
 					isrBranchCurrent = ((isrBranchCurrent + 1) % (NUM_BRANCH_CIRCUITS));
+
 					isrBranchCurrent+= ADS8638_CURR1;
 					isrBranchVoltage = CIRCUIT_PAIR[isrBranchCurrent - ADS8638_CURR1];
 					branch_timer.begin(timerISR_BRANCH, 1000000 >> SAMPLE_RATE_SHIFT_BRANCH, uSec, AUTO); //122 uSec sample time
@@ -315,7 +332,7 @@ void setup() {
 	pinMode(LED4, OUTPUT);
 
 	digitalWrite(LED1, HIGH);
-  Particle.subscribe("setRelay", dataHandler);
+  // Particle.subscribe("setRelay", dataHandler);
 	digitalWrite(LED2, HIGH);
   Particle.subscribe("sendEvent", dataHandler);
 	digitalWrite(LED3, HIGH);
@@ -348,7 +365,7 @@ void loop() {
 	// Serial.println(System.freeMemory());Serial.print(" , "); //FIXME
 	timerLoop(state_volt1, pWave_VOLT1, circuit_state_curr1, outFlag[circuit_state_curr1], circuit[circuit_state_curr1]);
 	timerLoop(state_volt2, pWave_VOLT2, circuit_state_curr2, outFlag[circuit_state_curr2], circuit[circuit_state_curr2]);
-	// timerLoop(state_branch, pWave_BRANCH, circuit_state, outFlag[circuit_state], circuit[circuit_state]);
+	timerLoop(state_branch, pWave_BRANCH, circuit_state, outFlag[circuit_state], circuit[circuit_state]);
 
 
 	// Serial.print("state_volt1: ");Serial.print((int)MY_ADC.read1(ADS8638_CURR5));

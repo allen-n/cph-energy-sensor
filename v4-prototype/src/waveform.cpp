@@ -33,13 +33,6 @@ void waveform::resetWave()
   this->_RMS = NULL;
 }
 
-// unsigned long waveform::printTime(int i)
-// //print time value from vector at position i
-// {
-//   int vsize = this->_timeStamp.size();
-//   if(i <= vsize) return this->_timeStamp[i];
-//   else return -1;
-// }
 
 double waveform::printData(int i)
 //print data value from vector at position i
@@ -48,14 +41,6 @@ double waveform::printData(int i)
   if(i <= vsize) return this->_datapoints[i];
   else return 0;
 }
-
-// double waveform::printFilterData(int i)
-// //print data value from vector at position i
-// {
-//   int vsize = this->_filterDatapoints.size();
-//   if(i <= vsize) return this->_filterDatapoints[i];
-//   else return 0;
-// }
 
 unsigned long waveform::printPeaks(int i)
 //print data value from vector at position i
@@ -66,7 +51,6 @@ unsigned long waveform::printPeaks(int i)
   else return -5;
 }
 
-// void waveform::addData(unsigned long currentTime, double data)
 void waveform::addData(double data)
 // add a datapoint to the waveform in the for addData(time, data)
 // and increment the position pointer in the waveform vector,
@@ -79,17 +63,14 @@ void waveform::addData(double data)
   this->_posPointer++;
 }
 
-//FIXME: WRITE AVG FILTER FUNCTION http:
+
 void waveform::movingAvgFilter()
 {
-  /*_filterDatapoints
-  _datapoints*/
   this->_isFiltered = true;
   size_t len = this->_numPts;
   int kernSize = this->_filtKernalSize;
   int p = (kernSize-1)/2;
   int q = p+1;
-  // std::vector<double> y(this->_datapoints);
   double y[len];
   std::vector<double>& x = this->_datapoints;
 
@@ -101,7 +82,6 @@ void waveform::movingAvgFilter()
   }
 
   y[p] = acc/kernSize;
-  // Serial.print(" y[p]: ");Serial.println(y[p]);
 
 
   for(size_t i = p+1; i < len - p; i++)
@@ -166,7 +146,6 @@ double waveform::getAverage()
     int numPts = this->_numPts;
     std::vector<double>& x = this->_datapoints;
     size_t index = (this->_filtKernalSize-1)/2;
-    // if(x.size() == this->_filterDatapoints.size()) x = this->_filterDatapoints;
     for(int i = index; i < numPts - index; ++i)
     {
       double data = x[i];
@@ -176,69 +155,6 @@ double waveform::getAverage()
   }
   return this->_average;
 }
-
-// /**
-//   Depreciated, don't use this.
-// **/
-// double waveform::getFrequency()
-// {
-//
-//   if(this->_frequency == NULL)
-//   {
-//     if(this->_average == NULL) this->getAverage();
-//
-//     int numPts = this->_numPts;
-//     size_t index = (this->_filtKernalSize-1)/2;
-//     std::vector<double>& x = this->_datapoints;
-//     // if(x.size() == this->_filterDatapoints.size()) x = this->_filterDatapoints;
-//     for(int i = index + 1; i < numPts - index - 2; ++i)
-//     {
-//       double prev = x[i-1];
-//       double current = x[i];
-//       double next = x[i+1];
-//       double next2 = x[i+2];
-//       double avg = this->_average;
-//       double peak = this->_average + this->getAverage()/2;
-//       if(prev > avg && next2 < avg && next <= avg && current >= avg) //TODO: keep fixing peak finder
-//       {
-//         this->_peakVect[i] = (this->_timeStamp[i] + this->_timeStamp[i+1])/2;
-//       }
-//       else
-//       {
-//         this->_peakVect[i] = 0;
-//       }
-//     }
-//
-//     int counter = 0;
-//     double totalTime = 0;
-//     double nowTime = 0;
-//     double maxTime = 0;
-//     double prevTime = 0;
-//     /*unsigned long maxTime = 35791394;*/
-//     for(int i = 1; i < numPts - 1; ++i)
-//     {
-//       nowTime = this->_peakVect[i];
-//       if(nowTime > 0)
-//       {
-//         if(prevTime == 0)
-//         {
-//           prevTime = nowTime;
-//           continue;
-//         }
-//         else
-//         {
-//             maxTime = nowTime;
-//             counter++;
-//         }
-//       }
-//     }
-//     maxTime = (maxTime) / 1000000.0;
-//     prevTime = (prevTime) / 1000000.0;
-//     this->_frequency = (double)counter/((maxTime) - (prevTime));
-//   }
-//
-//   return this->_frequency;
-// }
 
 bool waveform::dataFull()
 {

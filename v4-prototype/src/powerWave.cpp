@@ -19,13 +19,10 @@ powerWave::powerWave(int numPts, int SAMPLE_RATE)
 
 void powerWave::clearWave()
 {
-  /*this->_pData.clear();*/
   this->_apparentP = NULL;
   this->_realP = NULL;
   this->_reactiveP = NULL;
   this->_PF = NULL;
-  // std::fill(_pData.begin(), _pData.end(), -1);
-  // std::fill(_pDataAngle.begin(), _pDataAngle.end(), 0);
 }
 
 void powerWave::addComponents(waveform& vWave, waveform& iWave)
@@ -34,7 +31,6 @@ void powerWave::addComponents(waveform& vWave, waveform& iWave)
   if(this->_iWave == NULL) this->_iWave = & iWave;
   this->_pDataSize = (iWave._numPts - (iWave._filtKernalSize-1))*2;
   this->_pData.resize(this->_pDataSize);
-  // this->_pDataAngle.resize(this->_pDataSize);
 }
 
 double powerWave::getApparentP()
@@ -99,17 +95,12 @@ void powerWave::calcP()
     size_t index = (this->_iWave->_filtKernalSize-1)/2;
     std::vector<double>& vb = this->_vWave->_datapoints;
     std::vector<double>& ib = this->_iWave->_datapoints;
-    // int temp_peaks[peakSize];
-    // for (int i = 0; i < peakSize; i++) {
-    //     temp_peaks[i] = this->_iWave->_peakVect[i];
-    // }
 
     for(int m = index; m < size - index; ++m)
     {
       v = vb[m];
       i = ib[m];
       this->_pData[m-index] = i; //FFT on just current
-      // this->_iWave->_peakVect[m-index] = temp_peaks[m];
       this->_iWave->_peakVect[m-index] = this->_iWave->_peakVect[m];
       sum += v*i;
     }
@@ -191,31 +182,14 @@ void powerWave::computeFFT()
   float denom = 0;
   for(size_t i=0; i<len; i++)
   {
-    // Serial.println(data[i]);
     if(i < len/2)
     {
-      // Sending <RE, IM> for each frequency bucket, where
-      // _pData[i] = RE and _pDataAngle[i] = IM
       this->_pData[i] = data[i];
-      // this->_pDataAngle[i] = data[(i*2)+1];
-      // commented old code below:
-      // float t1 = data[i*2];
-      // float t2 = data[(i*2)+1];
-      // this->_pData[i] = sqrt(t1*t1+t2*t2)*2/len; //no sqrt, this cooresponds to energy
-      // this->_pDataAngle[i] = atan2(t2,t1) * 180/PI;
-      // denom += (t1*t1+t2*t2);
     } else {
       this->_pData[i] = 0;
-      // this->_pDataAngle[i] = 0;
     }
   }
-  // Serial.println(" ");
 
-  // Taking harmonic power as percentage over total spectrum
-  // for(size_t i=0; i<len/4; i++)
-  // {
-  //     this->_pData[i] = roundf(10000*this->_pData[i]/denom)/100;
-  // }
 
   float denom2 = 0;
   this->_errVal = this->_pDataSize;
@@ -227,19 +201,9 @@ void powerWave::computeFFT()
     double fracpart = (float)index/(float)resolution;
     float frac = modf(fracpart, &intpart);
     index = intpart;
-    // this->_harmonics[i] = index+frac;
     this->_harmonics[i] = (this->_pData[index]*(1-frac) + this->_pData[index+2]*frac);
     this->_harmonics[i] = roundf(1000*this->_harmonics[i])/1000;
-    // this->_harmonicsAngle[i] = (this->_pDataAngle[index]*(1-frac) + this->_pDataAngle[index+1]*frac);
-    // denom2 += this->_harmonics[i];
   }
-  // taking harmonic power over only harmonic frequencies
-  // for(size_t i=0; i<this->_numHarmonics; i++)
-  // {
-  //     // this->_harmonics[i] = roundf(10000*this->_harmonics[i]/denom2)/100;
-  //     this->_harmonics[i] = roundf(1000*this->_harmonics[i])/1000;
-  //     // this->_harmonicsAngle[i] = roundf(1000*this->_harmonicsAngle[i])/1000;
-  // }
 }
 
 #define SWAP(a,b)tempr=(a);(a)=(b);(b)=tempr
