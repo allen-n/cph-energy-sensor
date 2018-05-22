@@ -45,7 +45,7 @@ STARTUP(WiFi.selectAntenna(ANT_EXTERNAL)); // selects the u.FL antenna,
 // STARTUP(WiFi.selectAntenna(ANT_INTERNAL)); // selects the internal antenna,
 
 // Configuring Serial output (SERIAL_DEBUG) or webhook output (!SERIAL_DEBUG)
-const bool SERIAL_DEBUG = false;
+const bool SERIAL_DEBUG = true;
 
 // Configuring antenna
 const bool EXT_ANTENNA = true;
@@ -187,17 +187,17 @@ void logCircuit(waveform& iWave, waveform& vWave, powerWave& pWave,
 	String out = String(circuit) + " "; //indicating which circuit is sending the data
 	out += c1.get_data_string();
 	// Serial.print("Circuit ");Serial.print(isrBranchCurrent);Serial.print(" ");
-  // Serial.println(out); //NOTE: Continuous Serial Debug Option, uncomment
-  if(c1.data_ready()){
-    digitalWrite(D7, HIGH);
-    if(SERIAL_DEBUG){
-      Serial.println(out);
-    } else {
-      sendInterval = millis();
-      Particle.publish("send-i,v,pf,s,p,q", out, 5, PRIVATE);
-    }
-    digitalWrite(D7, LOW);
-  }
+  Serial.println(out); //NOTE: Continuous Serial Debug Option, uncomment
+  // if(c1.data_ready()){
+  //   digitalWrite(D7, HIGH);
+  //   if(SERIAL_DEBUG){
+  //     Serial.println(out);
+  //   } else {
+  //     sendInterval = millis();
+  //     Particle.publish("send-i,v,pf,s,p,q", out, 5, PRIVATE);
+  //   }
+  //   digitalWrite(D7, LOW);
+  // }
 }
 
 double v_ratio = (3.3 * 1000000) / (4095 * 2);
@@ -282,15 +282,15 @@ void timerLoop(State& state, powerWave& pWave, ACTIVE_CIRCUIT& circuit_state, bo
 			switch(circuit_state){ //once these values are finalized, put the final value to save computation time
 				case CURR1:
 					v_ratio = (3.3 * 1000000) / (4095 * 2);
-					i_ratio = ((3.3 * 1000000) / (4095 * 400));
+					i_ratio = 3*((3.3 * 1000000) / (4095 * 400));
 					break;
 				case CURR2:
 					v_ratio = (3.3 * 1000000) / (4095 * 2);
-					i_ratio = ((3.3 * 1000000) / (4095 * 400));
+					i_ratio = 3*((3.3 * 1000000) / (4095 * 400));
 					break;
 				default:
 					v_ratio = ((3.3 * 1000000) / (4095 * 2))*6/10;
-					i_ratio = ((3.3 * 1000000) / (4095 * 10));
+					i_ratio = 5*((3.3 * 1000000) / (4095 * 10));
 					break;
 			}
 			transferBuff(*(samples[circuit_state]), outFlag, vWave, iWave);
@@ -307,7 +307,7 @@ void timerLoop(State& state, powerWave& pWave, ACTIVE_CIRCUIT& circuit_state, bo
 			pWave.clearWave();
 			vWave.resetWave();
 			iWave.resetWave();
-			if(pWave.getRealP() < 0) swapCircuit(circuit_state); //this is the wrong phase voltage, swap them
+			if(pWave.getPF() <= 0) swapCircuit(circuit_state); //this is the wrong phase voltage, swap them
 
 			if(SERIAL_DEBUG) delay(15);
 			state = STATE_INIT;
@@ -363,11 +363,16 @@ bool outFlag[NUM_CIRCUITS] = {false, false, false, false, false};
 
 void loop() {
 	// Serial.println(System.freeMemory());Serial.print(" , "); //FIXME
-	timerLoop(state_volt1, pWave_VOLT1, circuit_state_curr1, outFlag[circuit_state_curr1], circuit[circuit_state_curr1]);
-	timerLoop(state_volt2, pWave_VOLT2, circuit_state_curr2, outFlag[circuit_state_curr2], circuit[circuit_state_curr2]);
-	timerLoop(state_branch, pWave_BRANCH, circuit_state, outFlag[circuit_state], circuit[circuit_state]);
+	// timerLoop(state_volt1, pWave_VOLT1, circuit_state_curr1, outFlag[circuit_state_curr1], circuit[circuit_state_curr1]);
+	// timerLoop(state_volt2, pWave_VOLT2, circuit_state_curr2, outFlag[circuit_state_curr2], circuit[circuit_state_curr2]);
+	// timerLoop(state_branch, pWave_BRANCH, circuit_state, outFlag[circuit_state], circuit[circuit_state]);
 
-
+	// Serial.print((int)MY_ADC.read1(ADS8638_CURR1));Serial.print(",");
+	// Serial.print((int)MY_ADC.read1(ADS8638_CURR2));Serial.print(",");
+	// Serial.print((int)MY_ADC.read1(ADS8638_CURR3));Serial.print(",");
+	Serial.print((int)MY_ADC.read1(ADS8638_CURR4));Serial.print(",");
+	Serial.print((int)MY_ADC.read1(ADS8638_CURR5));Serial.print(",");
+	Serial.print((int)MY_ADC.read1(ADS8638_CURR6));Serial.println(",");
 	// Serial.print("state_volt1: ");Serial.print((int)MY_ADC.read1(ADS8638_CURR5));
 	// Serial.print(" state_volt2: ");Serial.print((int)MY_ADC.read1(ADS8638_CURR6));
 	// Serial.print(" state_branch: ");Serial.println((int)MY_ADC.read1(ADS8638_CURR3));
