@@ -201,8 +201,8 @@ void logCircuit(waveform& iWave, waveform& vWave, powerWave& pWave,
 }
 
 // new ratios were experimentally determined
-double v_ratio = 1000 / 4; //(3.3 * 1000000) / (4095 * 2);
-double i_ratio = 1000 / 8; //(3.3 * 1000000) / (4095 * 10);
+double v_ratio = 1 ;//1000 / 4; //(3.3 * 1000000) / (4095 * 2);
+double i_ratio = 1; //1000 / 8; //(3.3 * 1000000) / (4095 * 10);
 // vref * 100000 / (adc counts * turns_ratio/(burdenR*1000))
 void transferBuff(SampleBuf& buff, bool& outFlag, waveform& vWave, waveform& iWave){
   for(size_t i = 0; i < SAMPLE_BUF_SIZE; i++)
@@ -217,7 +217,7 @@ void transferBuff(SampleBuf& buff, bool& outFlag, waveform& vWave, waveform& iWa
 		vWave.addData(floorf(v_val)/1000);
     // FIXME:
     // Serial.print(i);Serial.print(" , ");Serial.print(time_val);Serial.print(" , ");
-    // Serial.println(floorf(i_val)/100);
+    Serial.println(floorf(i_val));
 	}
   // Serial.println();
   outFlag = true;
@@ -280,20 +280,20 @@ void timerLoop(State& state, powerWave& pWave, ACTIVE_CIRCUIT& circuit_state, bo
 			break;
 		case STATE_PROCESS:
 			outFlag = false;
-			switch(circuit_state){ //once these values are finalized, put the final value to save computation time
-				case CURR1:
-					v_ratio = 400;
-					i_ratio = 480;
-					break;
-				case CURR2:
-					v_ratio = 400;
-					i_ratio = 480;
-					break;
-				default:
-					v_ratio = 250;
-					i_ratio = 125;
-					break;
-			}
+			// switch(circuit_state){ //once these values are finalized, put the final value to save computation time
+			// 	case CURR1:
+			// 		v_ratio = 400;
+			// 		i_ratio = 480;
+			// 		break;
+			// 	case CURR2:
+			// 		v_ratio = 400;
+			// 		i_ratio = 480;
+			// 		break;
+			// 	default:
+			// 		v_ratio = 250;
+			// 		i_ratio = 125;
+			// 		break;
+			// }
 			transferBuff(*(samples[circuit_state]), outFlag, vWave, iWave);
 			// Serial.print("Logging circuit for c");Serial.println(circuit_state);
 			iWave.movingAvgFilter();
@@ -366,15 +366,15 @@ void loop() {
 	// Serial.println(System.freeMemory());Serial.print(" , "); //FIXME
 	// timerLoop(state_volt1, pWave_VOLT1, circuit_state_curr1, outFlag[circuit_state_curr1], circuit[circuit_state_curr1]);
 	// timerLoop(state_volt2, pWave_VOLT2, circuit_state_curr2, outFlag[circuit_state_curr2], circuit[circuit_state_curr2]);
-	// timerLoop(state_branch, pWave_BRANCH, circuit_state, outFlag[circuit_state], circuit[circuit_state]);
+	timerLoop(state_branch, pWave_BRANCH, circuit_state, outFlag[circuit_state], circuit[circuit_state]);
 
-	Serial.print((int)MY_ADC.read1(ADS8638_CURR1));Serial.print(",");
-	Serial.print((int)MY_ADC.read1(ADS8638_CURR2));Serial.print(",");
-	Serial.print((int)MY_ADC.read1(ADS8638_CURR3));Serial.print(",");
-	Serial.print((int)MY_ADC.read1(ADS8638_CURR4));Serial.print(",");
-	Serial.print((int)MY_ADC.read1(ADS8638_CURR5));Serial.print(",");
-	Serial.print((int)MY_ADC.read1(ADS8638_CURR6));Serial.print(",");
-	Serial.print((int)MY_ADC.read1(ADS8638_VOLT1));Serial.println(",");
+	// Serial.print((int)MY_ADC.read1(ADS8638_CURR1));Serial.print(",");
+	// Serial.print((int)MY_ADC.read1(ADS8638_CURR2));Serial.print(",");
+	// Serial.print((int)MY_ADC.read1(ADS8638_CURR3));Serial.print(",");
+	// Serial.print((int)MY_ADC.read1(ADS8638_CURR4));Serial.print(",");
+	// Serial.print((int)MY_ADC.read1(ADS8638_CURR5));Serial.print(",");
+	// Serial.print((int)MY_ADC.read1(ADS8638_CURR6));Serial.print(",");
+	// Serial.print((int)MY_ADC.read1(ADS8638_VOLT1));Serial.println(",");
 	// Serial.print((int)MY_ADC.read1(ADS8638_VOLT2));Serial.println(",");
 	// Serial.print("state_volt1: ");Serial.print((int)MY_ADC.read1(ADS8638_CURR5));
 	// Serial.print(" state_volt2: ");Serial.print((int)MY_ADC.read1(ADS8638_CURR6));
