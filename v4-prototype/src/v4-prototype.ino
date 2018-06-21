@@ -200,8 +200,9 @@ void logCircuit(waveform& iWave, waveform& vWave, powerWave& pWave,
   // }
 }
 
-double v_ratio = (3.3 * 1000000) / (4095 * 2);
-double i_ratio = (3.3 * 1000000) / (4095 * 10);
+// new ratios were experimentally determined
+double v_ratio = 1000 / 4; //(3.3 * 1000000) / (4095 * 2);
+double i_ratio = 1000 / 8; //(3.3 * 1000000) / (4095 * 10);
 // vref * 100000 / (adc counts * turns_ratio/(burdenR*1000))
 void transferBuff(SampleBuf& buff, bool& outFlag, waveform& vWave, waveform& iWave){
   for(size_t i = 0; i < SAMPLE_BUF_SIZE; i++)
@@ -281,16 +282,16 @@ void timerLoop(State& state, powerWave& pWave, ACTIVE_CIRCUIT& circuit_state, bo
 			outFlag = false;
 			switch(circuit_state){ //once these values are finalized, put the final value to save computation time
 				case CURR1:
-					v_ratio = (3.3 * 1000000) / (4095 * 2);
-					i_ratio = 3*((3.3 * 1000000) / (4095 * 400));
+					v_ratio = 400;
+					i_ratio = 480;
 					break;
 				case CURR2:
-					v_ratio = (3.3 * 1000000) / (4095 * 2);
-					i_ratio = 3*((3.3 * 1000000) / (4095 * 400));
+					v_ratio = 400;
+					i_ratio = 480;
 					break;
 				default:
-					v_ratio = ((3.3 * 1000000) / (4095 * 2))*6/10;
-					i_ratio = 5*((3.3 * 1000000) / (4095 * 10));
+					v_ratio = 250;
+					i_ratio = 125;
 					break;
 			}
 			transferBuff(*(samples[circuit_state]), outFlag, vWave, iWave);
@@ -367,12 +368,14 @@ void loop() {
 	// timerLoop(state_volt2, pWave_VOLT2, circuit_state_curr2, outFlag[circuit_state_curr2], circuit[circuit_state_curr2]);
 	// timerLoop(state_branch, pWave_BRANCH, circuit_state, outFlag[circuit_state], circuit[circuit_state]);
 
-	// Serial.print((int)MY_ADC.read1(ADS8638_CURR1));Serial.print(",");
-	// Serial.print((int)MY_ADC.read1(ADS8638_CURR2));Serial.print(",");
-	// Serial.print((int)MY_ADC.read1(ADS8638_CURR3));Serial.print(",");
+	Serial.print((int)MY_ADC.read1(ADS8638_CURR1));Serial.print(",");
+	Serial.print((int)MY_ADC.read1(ADS8638_CURR2));Serial.print(",");
+	Serial.print((int)MY_ADC.read1(ADS8638_CURR3));Serial.print(",");
 	Serial.print((int)MY_ADC.read1(ADS8638_CURR4));Serial.print(",");
 	Serial.print((int)MY_ADC.read1(ADS8638_CURR5));Serial.print(",");
-	Serial.print((int)MY_ADC.read1(ADS8638_CURR6));Serial.println(",");
+	Serial.print((int)MY_ADC.read1(ADS8638_CURR6));Serial.print(",");
+	Serial.print((int)MY_ADC.read1(ADS8638_VOLT1));Serial.println(",");
+	// Serial.print((int)MY_ADC.read1(ADS8638_VOLT2));Serial.println(",");
 	// Serial.print("state_volt1: ");Serial.print((int)MY_ADC.read1(ADS8638_CURR5));
 	// Serial.print(" state_volt2: ");Serial.print((int)MY_ADC.read1(ADS8638_CURR6));
 	// Serial.print(" state_branch: ");Serial.println((int)MY_ADC.read1(ADS8638_CURR3));
