@@ -11,6 +11,7 @@ circuitVal::circuitVal(double deltaCurrent, unsigned long deltaTime ){
   this->old_iRMS = 0;
   this->prevTime = 0;
   this->circuit_state = CHANGE_WAIT;
+  this->is_ready = false;
 
   for (int i = 0; i < this->_buff_size; i++) {
     this->vRMS_buff[i] = 0;
@@ -36,6 +37,7 @@ bool circuitVal::data_ready(){
   double deltaCurrent = this->deltaCurrent;
   double di = abs(this->iRMS - this->old_iRMS);
   unsigned long dt = millis() - this->prevTime;
+  if(this->is_ready) return this->is_ready;
   // Serial.println(di);
   // add delta time trigger back
   // trigger on changes <= .01
@@ -58,6 +60,7 @@ bool circuitVal::data_ready(){
         this->old_iRMS = this->iRMS;
         // this->circuit_state = CHANGE_STOP;
         this->circuit_state = CHANGE_WAIT;
+        this->is_ready = true;
         return true;
       }
       return false;
@@ -69,6 +72,10 @@ bool circuitVal::data_ready(){
     default:
       return false;
   }
+}
+
+void circuitVal::reset(){
+  this->is_ready = false;
 }
 
 

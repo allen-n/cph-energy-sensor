@@ -31,6 +31,7 @@ class circuitVal
       float* get_harmonics();
       bool data_ready();
       String get_data_string();
+      void reset();
 
   protected:
     static const int _buff_size = 15;
@@ -58,6 +59,7 @@ class circuitVal
     State circuit_state;
     unsigned long deltaTime;
     unsigned long prevTime;
+    bool is_ready;
 
 };
 

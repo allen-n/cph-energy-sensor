@@ -37,8 +37,8 @@
 ads6838::ads6838(){
 	// uint8_t commandByte;
 	// uint8_t k = 0;
-  this->_range = ADS8638_RANGE_5V; //FIXME, this range works, new one may not
-  // this->_range = ADS8638_RANGE_2_5V;
+  // this->_range = ADS8638_RANGE_5V; //FIXME, this range works, new one may not
+  this->_range = ADS8638_RANGE_2_5V;
 	// for (uint8_t i = 0; i < sizeof(this->tx_buffer_read8); i++) {
 	// 	if(i%2 == 0) {
 	// 		commandByte = (ADS8638_REG_MANUAL << 1) & 0xfe; //[15:9] reg addr, [8] read/write
