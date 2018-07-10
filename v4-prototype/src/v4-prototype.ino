@@ -48,7 +48,7 @@ STARTUP(WiFi.selectAntenna(ANT_EXTERNAL)); // selects the u.FL antenna,
 // STARTUP(WiFi.selectAntenna(ANT_INTERNAL)); // selects the internal antenna,
 
 // Configuring Serial output (SERIAL_DEBUG) or webhook output (!SERIAL_DEBUG)
-const bool SERIAL_DEBUG = true;
+const bool SERIAL_DEBUG = false;
 
 // Configuring antenna
 const bool EXT_ANTENNA = true;
@@ -204,9 +204,9 @@ void logCircuit(waveform& iWave, waveform& vWave, powerWave& pWave,
   }
 }
 
-const double v_divider_ratio = 100*(101/4095);
-const double i_mains_ratio = 100/29;
-const double i_branch_ratio = 100/41;
+const double v_divider_ratio = 100/4.0; //100*(101/4095); //FIXME
+const double i_mains_ratio = 100/29.5;
+const double i_branch_ratio = 100/41.0;
 
 double v_ratio = 100;
 double i_ratio = 100;
@@ -359,10 +359,10 @@ void setup() {
 	digitalWrite(LED1, LOW);
 	digitalWrite(LED2, LOW);
 	digitalWrite(LED3, LOW);
-	digitalWrite(LED4, HIGH);
+	digitalWrite(LED4, LOW);
 	sendInterval = millis();
 	delay(500);
-
+	digitalWrite(LED1, HIGH);
 
 }
 
@@ -373,9 +373,11 @@ bool outFlag[NUM_CIRCUITS] = {false, false, false, false, false};
 
 void loop() {
 	// Serial.println(System.freeMemory());Serial.print(" , "); //FIXME
+	digitalWrite(LED2, HIGH);
 	timerLoop(state_volt1, pWave_VOLT1, circuit_state_curr1, outFlag[circuit_state_curr1], circuit[circuit_state_curr1]);
 	timerLoop(state_volt2, pWave_VOLT2, circuit_state_curr2, outFlag[circuit_state_curr2], circuit[circuit_state_curr2]);
 	timerLoop(state_branch, pWave_BRANCH, circuit_state, outFlag[circuit_state], circuit[circuit_state]);
+	digitalWrite(LED2, LOW);
 
 	// Serial.print((int)MY_ADC.read1(ADS8638_CURR1));Serial.print(",");
 	// Serial.print((int)MY_ADC.read1(ADS8638_CURR2));Serial.print(",");
