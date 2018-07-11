@@ -175,9 +175,9 @@ void logCircuit(waveform& iWave, waveform& vWave, powerWave& pWave,
 	circuitVal& c1, ACTIVE_CIRCUIT& circuit_state){
   double iRMS = iWave.getRMS();
   double vRMS = vWave.getRMS();
-  double pf = -1*(pWave.getPF()); //FIXME: This is just a workaround!
+  double pf = pWave.getPF(); //FIXME: This is just a workaround!
   double apparentP = pWave.getApparentP();
-  double realP = -1*(pWave.getRealP()); //FIXME: This is just a workaround!
+  double realP = pWave.getRealP(); //FIXME: This is just a workaround!
   double reactiveP = pWave.getReactiveP();
   size_t numHarmoics = pWave.getNumHarmoics();
   float harmonics[numHarmoics];
