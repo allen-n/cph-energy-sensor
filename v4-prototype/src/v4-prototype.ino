@@ -62,8 +62,8 @@ const int NUM_BRANCH_CIRCUITS = NUM_CIRCUITS - 2;
 // defining pairings of voltage readings with their cooresponding current
 
 uint8_t CIRCUIT_PAIR[NUM_CIRCUITS] = {
-	ADS8638_VOLT1, ADS8638_VOLT1, ADS8638_VOLT1,
-	ADS8638_VOLT1, ADS8638_VOLT1, ADS8638_VOLT2
+	ADS8638_VOLT2, ADS8638_VOLT2, ADS8638_VOLT2,
+	ADS8638_VOLT2, ADS8638_VOLT2, ADS8638_VOLT2
 };
 
 // states for data processing in main loop()
@@ -167,6 +167,7 @@ void pushData(circuitVal& c1, bool& pushDataFlag)
     String outStr = out + c1.get_data_string();
 		digitalWrite(LED1, HIGH);
     Particle.publish("send-i,v,pf,s,p,q", outStr, 5, PRIVATE);
+		digitalWrite(LED1, LOW);
   }
 }
 
@@ -174,9 +175,9 @@ void logCircuit(waveform& iWave, waveform& vWave, powerWave& pWave,
 	circuitVal& c1, ACTIVE_CIRCUIT& circuit_state){
   double iRMS = iWave.getRMS();
   double vRMS = vWave.getRMS();
-  double pf = pWave.getPF();
+  double pf = -1*(pWave.getPF()); //FIXME: This is just a workaround!
   double apparentP = pWave.getApparentP();
-  double realP = pWave.getRealP();
+  double realP = -1*(pWave.getRealP()); //FIXME: This is just a workaround!
   double reactiveP = pWave.getReactiveP();
   size_t numHarmoics = pWave.getNumHarmoics();
   float harmonics[numHarmoics];
@@ -204,7 +205,7 @@ void logCircuit(waveform& iWave, waveform& vWave, powerWave& pWave,
   }
 }
 
-const double v_divider_ratio = 100/4.0; //100*(101/4095); //FIXME
+const double v_divider_ratio = 100/4.0;
 const double i_mains_ratio = 100/29.5;
 const double i_branch_ratio = 100/41.0;
 
@@ -318,6 +319,7 @@ void timerLoop(State& state, powerWave& pWave, ACTIVE_CIRCUIT& circuit_state, bo
 			vWave.resetWave();
 			iWave.resetWave();
 			if(pWave.getPF() <= 0) swapCircuit(circuit_state); //this is the wrong phase voltage, swap them
+			// FIXME
 
 			if(SERIAL_DEBUG) delay(15);
 			state = STATE_INIT;
@@ -393,8 +395,14 @@ void loop() {
 }
 
 void swapCircuit(uint8_t position){
-	if(CIRCUIT_PAIR[position] == ADS8638_VOLT1) CIRCUIT_PAIR[position] = ADS8638_VOLT2;
-	else CIRCUIT_PAIR[position] = ADS8638_VOLT1;
+	digitalWrite(LED3, HIGH);
+	if(CIRCUIT_PAIR[position] == ADS8638_VOLT1){
+		CIRCUIT_PAIR[position] = ADS8638_VOLT2;
+	}
+	else {
+		CIRCUIT_PAIR[position] = ADS8638_VOLT1;
+	}
+	digitalWrite(LED3, LOW);
 }
 
 // SampleBuf* curr1_samplebuff = &samples;
