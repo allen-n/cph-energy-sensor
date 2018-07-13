@@ -48,7 +48,7 @@ STARTUP(WiFi.selectAntenna(ANT_EXTERNAL)); // selects the u.FL antenna,
 // STARTUP(WiFi.selectAntenna(ANT_INTERNAL)); // selects the internal antenna,
 
 // Configuring Serial output (SERIAL_DEBUG) or webhook output (!SERIAL_DEBUG)
-const bool SERIAL_DEBUG = false;
+const bool SERIAL_DEBUG = true;
 
 // Configuring antenna
 const bool EXT_ANTENNA = true;
