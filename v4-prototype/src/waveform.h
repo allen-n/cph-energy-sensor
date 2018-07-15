@@ -1,19 +1,18 @@
 #ifndef __WAVEFORM_INCLUDED__
 #define __WAVEFORM_INCLUDED__
 
-#include <vector>
 #include <math.h>
+#include <vector>
 // #include <algorithm>
 // #include <fstream>
 // #include <string>
 // #include <sstream>
 
-class waveform
-{
+class waveform {
 public:
   // void addData(unsigned long currentTime, double data);
   void addData(double data);
-  double getRMS(double offset = 0);//get RMS value for waveform
+  double getRMS(double offset = 0); // get RMS value for waveform
   // double getFrequency();//get frequency
   bool dataFull();
   void resetWave();
@@ -51,7 +50,7 @@ protected:
   where each even element corresponds to the real part and each
   odd element to the imaginary part of a complex number.
   */
-  void FFT(double* data, unsigned long nn);
+  void FFT(double *data, unsigned long nn);
   // in case we need more filtering
 };
 
