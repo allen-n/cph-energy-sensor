@@ -161,13 +161,14 @@ void pushData(circuitVal &c1, bool &pushDataFlag) {
       String(circuit) + " "; // indicating which circuit is sending the data
   if ((millis() - sendInterval) > sendIntervalDelta > 0 && !SERIAL_DEBUG) {
     String outStr = out + c1.get_data_string();
-    Particle.publish("send-i,v,pf,s,p,q", outStr, 5, PRIVATE);
+    sendInterval = millis();
+    // Particle.publish("send-i,v,pf,s,p,q", outStr, 5, PRIVATE);
   }
   if (pushDataFlag && !SERIAL_DEBUG) {
     pushDataFlag = false;
     String outStr = out + c1.get_data_string();
     digitalWrite(LED1, HIGH);
-    Particle.publish("send-i,v,pf,s,p,q", outStr, 5, PRIVATE);
+    // Particle.publish("send-i,v,pf,s,p,q", outStr, 5, PRIVATE);
     digitalWrite(LED1, LOW);
   }
 }

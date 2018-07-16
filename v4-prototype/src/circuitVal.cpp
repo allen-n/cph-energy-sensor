@@ -32,11 +32,11 @@ template <typename T> inline const T abs(T const &x) {
 }
 
 bool circuitVal::data_ready() {
+  // if (this->is_ready)
+  //   return this->is_ready;
   double deltaCurrent = this->deltaCurrent;
   double di = abs(this->iRMS - this->old_iRMS);
   unsigned long dt = millis() - this->prevTime;
-  if (this->is_ready)
-    return this->is_ready;
   // Serial.println(di);
   // add delta time trigger back
   // trigger on changes <= .01
@@ -47,12 +47,7 @@ bool circuitVal::data_ready() {
     if (di > deltaCurrent) {
       this->prevTime = millis();
       this->circuit_state = CHANGE_START;
-      // this->circuit_state = CHANGE_WAIT;
     }
-    // else {
-    //   this->prevTime = millis();
-    //   this->circuit_state = CHANGE_START;
-    // }
     return false;
   case CHANGE_START:
     if (di < deltaCurrent) {
@@ -60,27 +55,25 @@ bool circuitVal::data_ready() {
       return false;
     } else if (dt > this->deltaTime) {
       this->old_iRMS = this->iRMS;
-      // this->circuit_state = CHANGE_STOP;
       this->circuit_state = CHANGE_WAIT;
       this->is_ready = true;
       return true;
     }
     return false;
-  case CHANGE_STOP:
-    if (di > deltaCurrent) {
-      this->circuit_state = CHANGE_WAIT;
-    }
-    return false;
   default:
+    this->circuit_state = CHANGE_WAIT;
     return false;
   }
 }
 
-void circuitVal::reset() { this->is_ready = false; }
+void circuitVal::reset() {
+  this->is_ready = false;
+  // this->old_iRMS = this->iRMS;
+}
 
 String circuitVal::get_data_string() {
   String iS = String(this->iRMS, 3) + " ";
-  String vS = String(this->vRMS, 2) + " ";
+  String vS = String(this->old_iRMS, 2) + " "; // FIXME
   String pfS = String(this->pf, 2) + " ";
   String sS = String(this->apparentP, 2) + " ";
   String pS = String(this->realP, 2) + " ";
