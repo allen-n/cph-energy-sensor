@@ -27,7 +27,7 @@ public:
   void reset();
 
 protected:
-  static const int _buff_size = 25;
+  static const int _buff_size = 20;
   static const int _num_harmonics = 6;
   int ptr = 0;
   double vRMS_buff[_buff_size];

@@ -13,12 +13,12 @@
 
 // Defining int constants cooresponding to ADS6838SR channels
 const uint8_t ADS8638_VOLT1 = 0x0;
-const uint8_t ADS8638_CURR1 = 0x1;
-const uint8_t ADS8638_CURR2 = 0x2;
-const uint8_t ADS8638_CURR3 = 0x3;
-const uint8_t ADS8638_CURR4 = 0x4;
-const uint8_t ADS8638_CURR5 = 0x5; // 100A Branch
-const uint8_t ADS8638_CURR6 = 0x6; // 100A Branch
+const uint8_t ADS8638_CURR1 = 0x1; // Circuit 3
+const uint8_t ADS8638_CURR2 = 0x2; // Circuit 4
+const uint8_t ADS8638_CURR3 = 0x3; // Circuit 5
+const uint8_t ADS8638_CURR4 = 0x4; // Circuit 6
+const uint8_t ADS8638_CURR5 = 0x5; // 100A Branch, Circuit 1
+const uint8_t ADS8638_CURR6 = 0x6; // 100A Branch, Circuit 2
 const uint8_t ADS8638_VOLT2 = 0x7;
 
 // Setting sample rates for branch circuits and 2 mains
@@ -259,10 +259,16 @@ void timerLoop(State &state, powerWave &pWave, ACTIVE_CIRCUIT &circuit_state,
       break;
     default:
       // pick next current branch, current branch values start at ADS8638_CURR1
+      // FIXME uncomment
       isrBranchCurrent -= ADS8638_CURR1;
       isrBranchCurrent = ((isrBranchCurrent + 1) % (NUM_BRANCH_CIRCUITS));
-
       isrBranchCurrent += ADS8638_CURR1;
+
+      // FIXME, testing each branch below:
+      // ADS8638_CURR1 (circuit 3) has no crosstalk on hardware
+      // ADS8638_CURR2 (circuit 4) has no crosstalk on hardware
+      // ADS8638_CURR3 (circuit 5) has no crosstalk on hardware
+      // isrBranchCurrent = ADS8638_CURR4;
       // isrBranchVoltage = CIRCUIT_PAIR[isrBranchCurrent - ADS8638_CURR1];
       branch_timer.begin(timerISR_BRANCH, 1000000 >> SAMPLE_RATE_SHIFT_BRANCH,
                          uSec, AUTO); // 122 uSec sample time
@@ -403,10 +409,10 @@ void loop() {
   digitalWrite(LED2, HIGH);
   timerLoop(state_volt1, pWave_VOLT1, circuit_state_curr1,
             outFlag[circuit_state_curr1], circuit[circuit_state_curr1]);
-  timerLoop(state_volt2, pWave_VOLT2, circuit_state_curr2,
-            outFlag[circuit_state_curr2], circuit[circuit_state_curr2]);
   timerLoop(state_branch, pWave_BRANCH, circuit_state, outFlag[circuit_state],
             circuit[circuit_state]);
+  timerLoop(state_volt2, pWave_VOLT2, circuit_state_curr2,
+            outFlag[circuit_state_curr2], circuit[circuit_state_curr2]);
   digitalWrite(LED2, LOW);
 
   // Serial.print((int)MY_ADC.read1(ADS8638_CURR1));Serial.print(",");

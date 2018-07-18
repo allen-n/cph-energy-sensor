@@ -54,9 +54,9 @@ bool circuitVal::data_ready() {
     }
     return false;
   case CHANGE_START:
-    if (di_prev > deltaCurrent * 4) {
+    if (di_prev > deltaCurrent * 2) {
       this->prev_read = this->iRMS;
-      this->prevTime += this->deltaTime / 4;
+      this->prevTime = millis();
       return false;
     }
     if (di < deltaCurrent) {
