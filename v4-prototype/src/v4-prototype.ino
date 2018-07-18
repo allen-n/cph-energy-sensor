@@ -162,7 +162,7 @@ void pushData(circuitVal &c1, bool &pushDataFlag) {
   if ((millis() - sendInterval) > sendIntervalDelta > 0 && !SERIAL_DEBUG) {
     String outStr = out + c1.get_data_string();
     sendInterval = millis();
-    // Particle.publish("send-i,v,pf,s,p,q", outStr, 5, PRIVATE);
+    Particle.publish("send-i,v,pf,s,p,q", outStr, 5, PRIVATE);
   }
   if (pushDataFlag && !SERIAL_DEBUG) {
     pushDataFlag = false;

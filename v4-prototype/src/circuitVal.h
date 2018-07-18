@@ -7,7 +7,7 @@
 
 class circuitVal {
 public:
-  circuitVal(double deltaCurrent = 0.060, unsigned long deltaTime = 1500);
+  circuitVal(double deltaCurrent = 0.042, unsigned long deltaTime = 2000);
   // NOTE: set to differentiate between loads that
   // have at least 40 mA difference over time periods of 1.
   // lowering current threshold reduces number of reads, but
@@ -27,7 +27,7 @@ public:
   void reset();
 
 protected:
-  static const int _buff_size = 15;
+  static const int _buff_size = 25;
   static const int _num_harmonics = 6;
   int ptr = 0;
   double vRMS_buff[_buff_size];
@@ -48,6 +48,7 @@ protected:
 
   double deltaCurrent;
   double old_iRMS;
+  double prev_read;
   enum State { CHANGE_START, CHANGE_STOP, CHANGE_WAIT };
   State circuit_state;
   unsigned long deltaTime;

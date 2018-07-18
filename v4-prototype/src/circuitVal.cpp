@@ -10,8 +10,10 @@ circuitVal::circuitVal(double deltaCurrent, unsigned long deltaTime) {
   this->deltaCurrent = deltaCurrent;
   this->old_iRMS = 0;
   this->prevTime = 0;
+  this->prev_read = this->old_iRMS;
   this->circuit_state = CHANGE_WAIT;
   this->is_ready = false;
+  this->prev_read = this->old_iRMS;
 
   for (int i = 0; i < this->_buff_size; i++) {
     this->vRMS_buff[i] = 0;
@@ -36,6 +38,7 @@ bool circuitVal::data_ready() {
   //   return this->is_ready;
   double deltaCurrent = this->deltaCurrent;
   double di = abs(this->iRMS - this->old_iRMS);
+  double di_prev = abs(this->iRMS - this->prev_read);
   unsigned long dt = millis() - this->prevTime;
   // Serial.println(di);
   // add delta time trigger back
@@ -46,10 +49,16 @@ bool circuitVal::data_ready() {
   case CHANGE_WAIT:
     if (di > deltaCurrent) {
       this->prevTime = millis();
+      this->prev_read = this->iRMS;
       this->circuit_state = CHANGE_START;
     }
     return false;
   case CHANGE_START:
+    if (di_prev > deltaCurrent * 4) {
+      this->prev_read = this->iRMS;
+      this->prevTime += this->deltaTime / 4;
+      return false;
+    }
     if (di < deltaCurrent) {
       this->circuit_state = CHANGE_WAIT;
       return false;
@@ -58,8 +67,9 @@ bool circuitVal::data_ready() {
       this->circuit_state = CHANGE_WAIT;
       this->is_ready = true;
       return true;
+    } else {
+      return false;
     }
-    return false;
   default:
     this->circuit_state = CHANGE_WAIT;
     return false;
@@ -73,7 +83,7 @@ void circuitVal::reset() {
 
 String circuitVal::get_data_string() {
   String iS = String(this->iRMS, 3) + " ";
-  String vS = String(this->old_iRMS, 2) + " "; // FIXME
+  String vS = String(this->vRMS, 2) + " ";
   String pfS = String(this->pf, 2) + " ";
   String sS = String(this->apparentP, 2) + " ";
   String pS = String(this->realP, 2) + " ";
@@ -101,7 +111,7 @@ float *circuitVal::get_harmonics() { return this->harmonics; }
 
 void circuitVal::addData(double iRMS, double vRMS, double pf, double apparentP,
                          double realP, double reactiveP, float *harmonics) {
-  this->old_iRMS = this->iRMS;
+  // this->old_iRMS = this->iRMS;
   this->iRMS =
       (this->iRMS * this->_buff_size - this->iRMS_buff[this->ptr] + iRMS) /
       (double)this->_buff_size;
