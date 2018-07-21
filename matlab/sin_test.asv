@@ -1,0 +1,9 @@
+sample_rate=4096;
+frequency=60;
+num_samples
+t = 0:1/sample_rate:1;
+N=length(t); %/number of samples
+
+s=sin(2*pi*frequency*t);
+
+y = (fft(s, N));

@@ -42,7 +42,7 @@ protected:
   // std::vector<float> _pDataAngle;
   int _SAMPLE_RATE;
   int _pDataSize = NULL;
-  float FFT(float data[], unsigned long number_of_complex_samples, int isign);
+  void FFT(float data[], unsigned long number_of_complex_samples, int isign);
   static const size_t _numHarmonics = 6; // was 8, changed to 6 to match
                                          // database
   float _harmonics[_numHarmonics];

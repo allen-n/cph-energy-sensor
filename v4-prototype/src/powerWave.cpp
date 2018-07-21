@@ -180,22 +180,19 @@ void powerWave::computeFFT() {
   }
 }
 
-#define SWAP(a, b)                                                             \
-  tempr = (a);                                                                 \
-  (a) = (b);                                                                   \
-  (b) = tempr
+#define SWAP(a,b)tempr=(a);(a)=(b);(b)=tempr
 // tempr is a variable from our FFT function
 // source:
 // https://www.codeproject.com/Articles/9388/How-to-implement-the-FFT-algorithm
 // data -> float array that represent the array of complex samples
 // number_of_complex_samples -> number of samples (N^2 order number)
 // isign -> 1 to calculate FFT and -1 to calculate Reverse FFT
-float powerWave::FFT(float data[], unsigned long number_of_complex_samples,
+void powerWave::FFT(float data[], unsigned long number_of_complex_samples,
                      int isign) {
   // variables for trigonometric recurrences
   unsigned long n, mmax, m, j, istep, i;
   double wtemp, wr, wpr, wpi, wi, theta, tempr, tempi;
-  float pi = 3.1415;
+  float pi = 3.14159265;
 
   // the complex array is real+complex so the array
   // as a size n = 2* number of complex samples
