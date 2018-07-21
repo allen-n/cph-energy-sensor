@@ -166,9 +166,9 @@ void powerWave::computeFFT() {
   float denom2 = 0;
   this->_errVal = this->_pDataSize;
   int resolution =
-      this->_SAMPLE_RATE * 2 /
+      this->_SAMPLE_RATE /
       len; // len of our fft is actually len/2, hence 2 in numerator
-  for (size_t i = 0; i < this->_numHarmonics; i++) {
+  for (size_t i = 1; i <= this->_numHarmonics; i++) {
     double intpart;
     int index = i * 60;
     double fracpart = (float)index / (float)resolution;
