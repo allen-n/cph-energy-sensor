@@ -366,8 +366,14 @@ void timerLoop(State &state, powerWave &pWave, ACTIVE_CIRCUIT &circuit_state,
   }
 }
 
+// reset the system after 60 seconds if the application is unresponsive
+ApplicationWatchdog wd(60000, System.reset);
+
 void setup() {
   // Put initialization like pinMode and begin functions here.
+  if (System.resetReason() == RESET_REASON_PANIC) {
+      System.enterSafeMode();
+  }
   if (SERIAL_DEBUG)
     Serial.begin(9600);
   pinMode(LED1, OUTPUT);
