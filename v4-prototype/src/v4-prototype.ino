@@ -22,7 +22,7 @@ const uint8_t ADS8638_CURR6 = 0x6; // 100A Branch, Circuit 2
 const uint8_t ADS8638_VOLT2 = 0x7;
 
 // Setting sample rates for branch circuits and 2 mains
-const size_t FILTER_KERNAL_SIZE = 8; // must be even
+const size_t FILTER_KERNAL_SIZE = 6; // must be even
 const size_t SAMPLE_BUF_SIZE =
     512 + FILTER_KERNAL_SIZE; // these rates are doubled from base
 // main #1

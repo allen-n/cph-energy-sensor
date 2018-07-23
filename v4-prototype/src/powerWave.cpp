@@ -167,15 +167,19 @@ void powerWave::computeFFT() {
   this->_errVal = this->_pDataSize;
   // len of our fft is actually len/2, hence 2 in numerator
   int resolution = this->_SAMPLE_RATE / len;
-  for (size_t i = 1; i <= this->_numHarmonics; i++) {
+  size_t h_offset = 2;
+  for (size_t i = 1; i <= this->_numHarmonics; i+=2) {
     double intpart;
-    int index = i * 60;
+    int index = (i + h_offset) * 60;
     double fracpart = (float)index / (float)resolution;
     float frac = modf(fracpart, &intpart);
     index = intpart;
     this->_harmonics[i-1] =
         (this->_pData[index] * (1 - frac) + this->_pData[index + 2] * frac);
     this->_harmonics[i-1] = roundf(1000 * this->_harmonics[i-1]) / 1000;
+    this->_harmonics[i] =
+        (this->_pData[index + 1] * (1 - frac) + this->_pData[index + 3] * frac);
+    this->_harmonics[i] = roundf(1000 * this->_harmonics[i]) / 1000;
   }
 }
 
